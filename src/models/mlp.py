@@ -4,12 +4,10 @@ import optuna
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
 from torch import nn
 import torch
 
-from src.datasets.load_tabular_data import load_data
-from src.datasets.preprocess.adult import get_adult_dataset
+from src.datasets.load_tabular_data import TabularDataset
 
 
 class MLP(nn.Module):
@@ -45,6 +43,8 @@ class MLP(nn.Module):
         return logits
 
 
+# TODO currently the main metric is auc, make it configurable?
+# Wrapping with torch lightning functionality:
 class LitMLP(pl.LightningModule):
     """ Defined the torch lightning system, the wraps the torch module (MLP) """
 
@@ -87,7 +87,8 @@ class LitMLP(pl.LightningModule):
         self.log(f"{stage}_loss", loss)
         self.log(f"{stage}_auc", auc)
 
-        # metrics aggregated accross epoch:
+        # metric aggregated across epoch:
+        # 'hp_metric' is the metric to be optimized for hps tuning
         self.log(f"{stage}_hp_metric", auc, on_step=False, on_epoch=True)
 
     def validation_step(self, batch, batch_idx):
@@ -104,7 +105,7 @@ class LitMLP(pl.LightningModule):
     @classmethod
     def define_trial_parameters(cls, trial: optuna.trial.Trial) -> Dict[str, Any]:
         """
-        Define the hyperparameters to be optimized by optuna.
+        Define the hyperparameters and their ranges to be optimized by optuna.
         """
         return dict(
             n_layers=trial.suggest_int("n_layers", 2, 5),
@@ -113,71 +114,25 @@ class LitMLP(pl.LightningModule):
             weight_decay=trial.suggest_float("weight_decay", 1e-6, 1e-1, log=True),
         )
 
-    @classmethod  # TODO should be configurable (YaML'd)
-    def get_best_parameters(cls) -> Dict[str, Any]:
-        """
-        Returns the best hyperparameters found.
-        """
-        # TODO update these
-        return dict(
-            n_layers=3,
-            hidden_dim=128,
-            lr=0.001,
-            weight_decay=1e-05,
-        )
 
+def train(hyperparameters,
+          data_parameters,
+          additional_callbacks=None):
+    """
+    Train a lightning-based model (using lightning Trainer API) with the given hyperparameters.
+    """
 
-data_parameters = dict(dataset_name='adult',
-                       data_file_path='data/adult/adult.data',
-                       metadata_file_path='data/adult/adult.metadata.csv',
-                       encoding_method=None)
-
-
-def grid_search_hps():
-    def objective(trial: optuna.trial.Trial) -> float:
-        # suggested HPs dict:
-        hyperparameters = LitMLP.define_trial_parameters(trial)
-        # train the model with the suggested HPs:
-        results = train_mlp(hyperparameters,
-                            data_parameters,
-                            additional_callbacks=[
-                                optuna.integration.PyTorchLightningPruningCallback(trial, monitor="val_hp_metric")
-                            ])
-
-        return results['best_model_val_hp_metric']
-
-    pruner = optuna.pruners.MedianPruner()  # if args.pruning else optuna.pruners.NopPruner()
-
-    study = optuna.create_study(direction="maximize", pruner=pruner)
-    study.optimize(objective, n_trials=5, timeout=600)
-
-    # print results:
-    print("Number of finished trials: {}".format(len(study.trials)))
-    print("Best trial:")
-    best_trial = study.best_trial
-    best_hps = best_trial.params
-    print("  Value: {}".format(best_trial.value))
-    print("  Params: ")
-    for key, value in best_hps.items():
-        print("    {}: {}".format(key, value))
-
-    # train with the best hps:
-    results = train_mlp(best_hps,
-                        data_parameters)
-
-
-def train_mlp(hyperparameters,
-              data_parameters,
-              additional_callbacks=None):
+    # TODO decouple data out of this function?
     # load dataset:
-    trainset, testset, features_metadata = load_data(**data_parameters)  # TODO **config.data
-    hyperparameters['data_summary'] = features_metadata.summary
+    tab_dataset = TabularDataset(**data_parameters)
+    trainset, testset = tab_dataset.trainset, tab_dataset.testset
+    hyperparameters['data_parameters'] = data_parameters
 
-    # setup data loaders:
+    # setup data loaders:  # TODO set loader to each
     trainloader = testloader = torch.utils.data.DataLoader(trainset, batch_size=2048, shuffle=True)
 
     # define the model
-    model = LitMLP(input_dim=features_metadata.n_features, output_dim=features_metadata.n_classes,
+    model = LitMLP(input_dim=tab_dataset.n_features, output_dim=tab_dataset.n_classes,
                    **hyperparameters)
 
     # define callbacks:
@@ -185,8 +140,7 @@ def train_mlp(hyperparameters,
     # defines checkpointing at the end of each epoch, saving the max-validation-metric model
     callbacks.append(ModelCheckpoint(monitor="val_hp_metric", mode="max",
                                      filename='{epoch}-{val_hp_metric:.3f}'
-    ))
-    # add early stopping? https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.EarlyStopping.html#lightning.pytorch.callbacks.EarlyStopping
+                                     ))
 
     if additional_callbacks is not None:
         callbacks += additional_callbacks
@@ -215,6 +169,39 @@ def train_mlp(hyperparameters,
     return results
 
 
+def grid_search_hyperparameters(data_parameters):
+    """
+    Runs hyperparameters tuning using optuna.
+    :return: the best parameters found
+    """
+    def optuna_hpo_objective(trial: optuna.trial.Trial) -> float:
+        """
+        Wraps the training to set the specific objective for optuna to optimize.
+        """
+        # suggested HPs dict:
+        hyperparameters = LitMLP.define_trial_parameters(trial)
+        # train the model with the suggested HPs:
+        results = train(hyperparameters,
+                        data_parameters,
+                        additional_callbacks=[
+                            optuna.integration.PyTorchLightningPruningCallback(trial, monitor="val_hp_metric")
+                        ])
+
+        return results['best_model_val_hp_metric']
+
+    pruner = optuna.pruners.MedianPruner()  # if args.pruning else optuna.pruners.NopPruner()
+    study = optuna.create_study(direction="maximize", pruner=pruner)
+    study.optimize(optuna_hpo_objective, n_trials=100, timeout=600)
+
+    return study.best_trial.params
+
+
 if __name__ == '__main__':
-    grid_search_hps()
-    # train_mlp(LitMLP.get_best_parameters())
+    train(
+        dict(
+            n_layers=3,
+            hidden_dim=128,
+            lr=0.001,
+            weight_decay=1e-05,
+        )
+    )

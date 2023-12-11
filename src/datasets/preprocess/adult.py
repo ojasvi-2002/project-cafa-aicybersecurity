@@ -32,16 +32,16 @@ def get_adult_dataset(data_file_path: str,
     metadata_df = pd.read_csv(metadata_file_path)
 
     # 1. Set order and filtering of columns from metadata (from metadata file)
-    df = df[metadata_df['name']].copy()
+    df = df[metadata_df['feature_name']].copy()
 
     # 2. Perform basic transformations (missing data, mapping columns, etc)
-    for cat_feature in metadata_df[metadata_df.type == 'categorical'].name:
+    for cat_feature in metadata_df[metadata_df.type == 'categorical'].feature_name:
         # Missing: Missing val --> most common val
         missing_val_string = ' ?'
         most_common_val = df[cat_feature].mode()[0]
         df[cat_feature].replace(missing_val_string, most_common_val, inplace=True)
 
-    label_col = metadata_df[metadata_df.type == 'label'].name.item()
+    label_col = metadata_df[metadata_df.type == 'label'].feature_name.item()
     df[label_col] = (df[label_col] == ' >50K')  # we predict who _has_ high income
 
     # 3. Categorical encoding:
@@ -51,10 +51,6 @@ def get_adult_dataset(data_file_path: str,
     elif encoding_method is None:
         # Default encoding follows a simple mapping of categories to integers
         df, metadata_df = add_mapping_encoding(df, metadata_df)
-
-    # 4. Update n_unique column in metadata (with for loop)
-    for idx, row in metadata_df.iterrows():
-        metadata_df.at[idx, 'n_values'] = df[row['name']].nunique()
 
     # 5. split to input and labels
     x_df, y_df = df.drop(columns=[label_col]), df[label_col]
@@ -72,5 +68,5 @@ def get_adult_from_dict_sample(
 
 
 if __name__ == '__main__':
-    get_adult_df("data/adult/adult.data", "data/adult/adult.metadata.csv",
-                 'one_hot_encoding')
+    get_adult_dataset("data/adult/adult.data", "data/adult/adult.metadata.csv",
+                      'one_hot_encoding')
