@@ -11,19 +11,25 @@ from art.summary_writer import SummaryWriter
 
 logger = logging.getLogger(__name__)
 
+
 class TabPGD(EvasionAttack):
     """
     PGD attack on tabular data.
     """
 
     attack_params = EvasionAttack.attack_params + [
-        "norm",
+        "standard_factors",
+        "cat_indices",
+        "ordinal_indices",
+        "cont_indices",
+        "feature_ranges",
+        "cat_encoding_method",
+        "one_hot_groups",
+        "random_init",
         "eps",
-        "eps_step",
-        "targeted",
-        "num_random_init",
-        "batch_size",
-        "minimal",
+        "step_size",
+        "max_iter",
+        "perturb_categorical_each_steps",
         "summary_writer",
     ]
     # Requiring implementation of 'loss_gradient()' (i.e., white-box access), via `LossGradientsMixin`.
@@ -101,43 +107,30 @@ class TabPGD(EvasionAttack):
         mask = np.ones_like(x) if mask is None else mask
         mask = mask.astype(np.float32)
 
-        # TODO epsilon seem to be the most bottle neck for ordinal features
-        # INSPECTED = [2]  # debugging line
-        epsilon_ball_upper = x + (self.eps * self.standard_factors)
-        epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
-        # epsilon_ball_upper[:, INSPECTED] = np.ceil(epsilon_ball_upper[:, INSPECTED]) +10_000
-        epsilon_ball_upper[:, self.cat_indices] = 1.0  # TODO generalize (this is for one-hot)
+        epsilon_ball_lower, epsilon_ball_upper = self._init_epsilon_ball(x)
 
-        epsilon_ball_lower = x - (self.eps * self.standard_factors)
-        epsilon_ball_lower[:, self.ordinal_indices] = np.floor(epsilon_ball_lower[:, self.ordinal_indices])
-        # epsilon_ball_lower[:, INSPECTED] = np.floor(epsilon_ball_lower[:, INSPECTED]) -10_000
-        epsilon_ball_lower[:, self.cat_indices] = 0.0  # TODO generalize
-        # 0. preliminary summary writer
-
-        # 0. Init random perturbation in epsilon-ball # TODO
         x_adv = x.copy()
 
         for step in tqdm(range(self.max_iter)):
-            x_adv_before_perturb = x_adv.copy()  # todo this is for validation only
+            x_adv_before_perturb = x_adv.copy()  # for validation purposes
 
             # Inject allow_updates-mask to 'mask'
             mask *= allow_updates[:, None]
+
+            # Initialize the perturbation
             perturbation_temp = np.zeros_like(x_adv)
 
-            if step == 1:  # TODO hack make more elegant
-                accum_grads = np.zeros_like(x_adv)
-
             if self.random_init and step == 0:
-                # if random_init is True, then we start the attack from a random point inside the epsilon-ball
-                perturbation_temp = np.random.uniform(-self.eps, self.eps, x.shape).astype(
-                    np.float32) * self.standard_factors
-                accum_grads = perturbation_temp
+                # we start the attack from a random point inside the epsilon-ball
+                perturbation_temp = np.random.uniform(-self.eps, self.eps, x.shape) * self.standard_factors
+                x_adv += self._get_random_categorical_perturbation(x_adv) * mask
+                # continuous and ordinal perturbations are derived from the usual ones
             else:
                 # Get gradient wrt loss; invert it if attack is targeted
                 # TODO: should the mask be applied before calculating the loss or something?
                 grad = self.estimator.loss_gradient(x, y)  # * (1 - 2 * int(self.targeted)) TODO targeted
                 # Update accumulated gradients
-                accum_grads += grad * mask  # TODO required?
+                accum_grads += grad * mask
                 # Set the temporal perturbation (each feature alters it according to its character)
                 perturbation_temp = self.step_size * self.standard_factors * np.sign(grad)
 
@@ -146,7 +139,8 @@ class TabPGD(EvasionAttack):
             # 4.2. Perturb integers with rounding
             x_adv += self._get_perturbation_ordinal(perturbation_temp) * mask
             # 4.3. Perturb categorical according to accumulated grads
-            if step % self.perturb_categorical_each_steps == 0 and step > 0:
+            if step % self.perturb_categorical_each_steps == 0 and step != 0:
+                # we perturb categories each predefined steps, and specifically not in the random init step
                 x_adv += self._get_perturbation_categorical(x_adv, accum_grads) * mask
 
             # 5. Project back to standard-epsilon-ball
@@ -176,7 +170,21 @@ class TabPGD(EvasionAttack):
 
         return x_adv
 
-    def _get_perturbation_continuous(self, perturbation_temp):
+    def _init_epsilon_ball(self, x: np.ndarray) -> np.ndarray:
+        epsilon_ball_upper = x + (self.eps * self.standard_factors)
+        epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
+
+        epsilon_ball_lower = x - (self.eps * self.standard_factors)
+        epsilon_ball_lower[:, self.ordinal_indices] = np.floor(epsilon_ball_lower[:, self.ordinal_indices])
+
+        if self.cat_encoding_method == 'one_hot_encoding':
+            # in case of one-hot-encoding we simply allow perturbation of all categories
+            epsilon_ball_upper[:, self.cat_indices] = 1.0
+            epsilon_ball_lower[:, self.cat_indices] = 0.0
+
+        return epsilon_ball_lower, epsilon_ball_upper
+
+    def _get_perturbation_continuous(self, perturbation_temp: np.ndarray) -> np.ndarray:
         perturb_cont = np.zeros_like(perturbation_temp)
         perturb_cont[:, self.cont_indices] = perturbation_temp[:, self.cont_indices]
         return perturb_cont
@@ -187,8 +195,9 @@ class TabPGD(EvasionAttack):
                                                 * np.sign(perturbation_temp[:, self.ordinal_indices]))
         return perturb_ord
 
-    def _get_perturbation_categorical(self, x_adv, accum_grads,
-                                      perturb_one_feature_only=False):
+    def _get_perturbation_categorical(self,
+                                      x_adv: np.ndarray, accum_grads: np.ndarray,
+                                      perturb_one_feature_only: bool = False) -> np.ndarray:
         perturb_cat = np.zeros_like(x_adv)
 
         if self.cat_encoding_method == 'one_hot_encoding':  # TODO generalize to TabNet
@@ -214,6 +223,26 @@ class TabPGD(EvasionAttack):
                 perturb_cat[samples_to_update_indices, chosen_cats] += 1
         else:
             raise NotImplementedError  # TODO
+        return perturb_cat
+
+    def _get_random_categorical_perturbation(self, x_adv: np.ndarray) -> np.ndarray:
+        """
+        Perturb a random feature of each sample, to a random category.
+        Used for random initialization of the attack.
+        """
+
+        perturb_cat = np.zeros_like(x_adv)
+        # 1. choose random feature to perturb, per sample
+        chosen_oh_groups = np.random.randint(0, len(self.one_hot_groups), size=x_adv.shape[0])
+
+        # 2. choose random category for the chosen feature, per sample
+        for sample_idx, chosen_oh_group_idx in enumerate(chosen_oh_groups):
+            chosen_oh_group = self.one_hot_groups[chosen_oh_group_idx]
+            chosen_cat = np.random.randint(0, len(chosen_oh_group))
+            chosen_cat_idx = self.one_hot_groups[chosen_oh_group_idx][chosen_cat]
+            perturb_cat[sample_idx, chosen_oh_group] -= x_adv[sample_idx, chosen_oh_group]
+            perturb_cat[sample_idx, chosen_cat_idx] = 1
+
         return perturb_cat
 
     def _validate_input(self):

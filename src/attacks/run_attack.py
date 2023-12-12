@@ -20,17 +20,32 @@ from src.attacks.tabpgd import TabPGD
 from src.datasets.load_tabular_data import TabularDataset
 from src.models.utils import load_trained_model
 
-model = load_trained_model('epoch=27-val_hp_metric=0.823.ckpt', model_type='mlp')
 
-# TODO verify trainset is the same as the one used in training (for disjoint train/test)
-# hyperparameters['data_summary'] = features_metadata.summary
 
-# load data:
-data_parameters = dict(dataset_name='adult',
-                           data_file_path='data/adult/adult.data',
-                           metadata_file_path='data/adult/adult.metadata.csv',
-                           encoding_method='one_hot_encoding')  # TODO CONFIG
-tab_dataset = TabularDataset(**data_parameters)
+# load data: # TODO CONFIGURABLE
+adult_params = dict(
+        dataset_name='adult',
+        data_file_path='data/adult/adult.data',
+        metadata_file_path='data/adult/adult.metadata.csv',
+        encoding_method='one_hot_encoding'
+)
+bank_params = dict(
+    dataset_name='bank',
+    data_file_path='data/bank/bank-full.csv',
+    metadata_file_path='data/bank/bank.metadata.csv',
+    encoding_method='one_hot_encoding'
+)
+phishing_params = dict(
+    dataset_name='phishing',
+    data_file_path='data/phishing/Phishing_Legitimate_full.arff',
+    metadata_file_path='data/phishing/phishing.metadata.csv',
+    encoding_method='one_hot_encoding'
+)
+data_params = adult_params
+tab_dataset = TabularDataset(**data_params)
+model = load_trained_model(f"{data_params['dataset_name']}-mlp.ckpt", model_type='mlp')
+
+# TODO verify 'model'-s training data as the same properties as 'tab_dataset'
 
 # CE Loss
 def model_loss(output, target):
