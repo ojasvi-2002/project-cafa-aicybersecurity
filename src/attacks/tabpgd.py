@@ -95,8 +95,17 @@ class TabPGD(EvasionAttack):
         mask = np.ones_like(x) if mask is None else mask
         mask = mask.astype(np.float32)
 
+        # TODO epsilon seem to be the most bottle neck for ordinal features
+        # INSPECTED = [2]  # debugging line
         epsilon_ball_upper = x + (self.eps * self.standard_factors)
+        epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
+        # epsilon_ball_upper[:, INSPECTED] = np.ceil(epsilon_ball_upper[:, INSPECTED]) +10_000
+        epsilon_ball_upper[:, self.cat_indices] = 1.0  # TODO generalize (this is for one-hot)
+
         epsilon_ball_lower = x - (self.eps * self.standard_factors)
+        epsilon_ball_lower[:, self.ordinal_indices] = np.floor(epsilon_ball_lower[:, self.ordinal_indices])
+        # epsilon_ball_lower[:, INSPECTED] = np.floor(epsilon_ball_lower[:, INSPECTED]) -10_000
+        epsilon_ball_lower[:, self.cat_indices] = 0.0  # TODO generalize
         # 0. preliminary summary writer
 
         # 0. Init random perturbation in epsilon-ball # TODO
@@ -121,7 +130,7 @@ class TabPGD(EvasionAttack):
                 # TODO: should the mask be applied before calculating the loss or something?
                 grad = self.estimator.loss_gradient(x, y)  # * (1 - 2 * int(self.targeted)) TODO targeted
                 # Update accumulated gradients
-                accum_grads += grad * mask
+                accum_grads += grad * mask  # TODO required?
                 # Set the temporal perturbation (each feature alters it according to its character)
                 perturbation_temp = self.step_size * self.standard_factors * np.sign(grad)
 
@@ -183,6 +192,13 @@ class TabPGD(EvasionAttack):
 
             # perturb groups with the largest max value
             for id_oh_group, oh_group in enumerate(self.one_hot_groups):
+                # get the largest accum_grads of the group
+                chosen_cat_idx = oh_group[accum_grads[:, oh_group].argmax(axis=1)]
+                # turn (only) these to 1
+                perturb_cat[:, oh_group] = -x_adv[:, oh_group]
+                perturb_cat[np.arange(x_adv.shape[0]), chosen_cat_idx] += 1
+                """
+                # TODO fix bug 
                 samples_to_update_indices = np.arange(x_adv.shape[0])
                 if perturb_one_feature_only:
                     # get indices of samples we want to update (samples with max grad in this group)
@@ -194,6 +210,7 @@ class TabPGD(EvasionAttack):
                 # samples_to_update_indices[:, None] ?
                 perturb_cat[:, oh_group] = -x_adv[:, oh_group]  # cancel previous category
                 perturb_cat[samples_to_update_indices[:, None], chosen_cats] += 1
+                """
         else:
             raise NotImplementedError  # TODO
         return perturb_cat
