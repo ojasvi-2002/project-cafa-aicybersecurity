@@ -130,7 +130,7 @@ class CaFA(EvasionAttack):
             mask[update_samples] = new_mask[update_samples]  # don't update mask for non-updated samples
 
             # Evaluate metrics
-            print(f"[{i}] success(x_adv, y):", is_attack_success.mean())
+            print(f"[{i}] success(x_adv, y):", (self.estimator.predict(x_adv).argmax(axis=1) != y).mean())
             print(f"[{i}] l0(x_adv):", calc_l0(x_adv, x).mean())
             print(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
             print(f"[{i}] update rate:", update_samples.mean())

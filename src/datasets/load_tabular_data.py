@@ -156,3 +156,8 @@ class TabularDataset:
             "Order and names of features in metadata and data should be the same"
         assert self.y_df.name == self.metadata_df[self.metadata_df.type == 'label'].feature_name.item(), \
             "Label name in metadata and data should be the same"
+
+        assert np.all(self.feature_ranges[:, 0] <= self.x_df.values), \
+            "Feature ranges should be at least as wide as the data"
+        assert np.all(self.feature_ranges[:, 1] >= self.x_df.values), \
+            "Feature ranges should be at least as wide as the data"
