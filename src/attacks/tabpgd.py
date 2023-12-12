@@ -188,29 +188,30 @@ class TabPGD(EvasionAttack):
             # get the max value of each OH group
             max_grads_per_group = np.zeros((x_adv.shape[0], len(self.one_hot_groups)))
             for id_oh_group, oh_group in enumerate(self.one_hot_groups):
-                max_grads_per_group[:, id_oh_group] = accum_grads[:, oh_group].max(-1)
+                max_grads_per_group[:, id_oh_group] = accum_grads[:, oh_group].sum(-1)
 
             # perturb groups with the largest max value
             for id_oh_group, oh_group in enumerate(self.one_hot_groups):
+                """
                 # get the largest accum_grads of the group
                 chosen_cat_idx = oh_group[accum_grads[:, oh_group].argmax(axis=1)]
                 # turn (only) these to 1
                 perturb_cat[:, oh_group] = -x_adv[:, oh_group]
-                perturb_cat[np.arange(x_adv.shape[0]), chosen_cat_idx] += 1
-                """
-                # TODO fix bug 
                 samples_to_update_indices = np.arange(x_adv.shape[0])
-                if perturb_one_feature_only:
+                perturb_cat[samples_to_update_indices.T, chosen_cat_idx] += 1
+                """
+                samples_to_update_indices = np.arange(x_adv.shape[0])
+                if perturb_one_feature_only:  # TODO debug
                     # get indices of samples we want to update (samples with max grad in this group)
                     samples_to_update = (max_grads_per_group.argmax(axis=-1) == id_oh_group)
                     samples_to_update_indices = np.where(samples_to_update)[0]
+                samples_to_update_indices = np.expand_dims(samples_to_update_indices, axis=1)  # to be used as an index
                 # get the largest accum_grads of the group
                 chosen_cats = oh_group[accum_grads[:, oh_group].argmax(axis=1)]
+                chosen_cats = chosen_cats[samples_to_update_indices]
                 # turn (only) these to 1
-                # samples_to_update_indices[:, None] ?
-                perturb_cat[:, oh_group] = -x_adv[:, oh_group]  # cancel previous category
-                perturb_cat[samples_to_update_indices[:, None], chosen_cats] += 1
-                """
+                perturb_cat[samples_to_update_indices, oh_group] = -x_adv[samples_to_update_indices, oh_group]  # cancel previous category
+                perturb_cat[samples_to_update_indices, chosen_cats] += 1
         else:
             raise NotImplementedError  # TODO
         return perturb_cat
