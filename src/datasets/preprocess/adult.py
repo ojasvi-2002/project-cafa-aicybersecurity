@@ -1,14 +1,7 @@
 import pandas as pd
 from typing import Tuple, List
-from sklearn.model_selection import train_test_split
-from typing import Tuple, List, Any, Optional, Dict
 
-from src.datasets.preprocess.utils import add_one_hot_encoding, add_mapping_encoding
-
-"""
-# metadata files include information essential for preprocessing, structure constraints and for inference time.
-# The metadata corresponding dataframe is also updated after the preprocessing.
-"""
+from src.datasets.preprocess.utils import add_categorical_encoding
 
 
 def get_adult_dataset(data_file_path: str,
@@ -17,12 +10,12 @@ def get_adult_dataset(data_file_path: str,
     """
     :param data_file_path: path to raw CSV dataset of the bank.
     :param metadata_file_path: path to raw CSV dataset of the bank.
+        # metadata files include information essential for preprocessing, structure constraints and for inference time.
+        # The metadata corresponding dataframe is also updated after the preprocessing.
     :param encoding_method: whether to perform one-hot-encoding on categorical features in the dataset
     :returns: DataFrame after pre-processing (including encoding categorical features),
                 and a list of the features-meta-data
     """
-
-    assert encoding_method in ('one_hot_encoding', None)
 
     # 0. Read data
     raw_data_header = ['age', 'workclass', 'fnlwgt', 'education', 'education_num', 'marital-status',
@@ -45,26 +38,12 @@ def get_adult_dataset(data_file_path: str,
     df[label_col] = (df[label_col] == ' >50K')  # we predict who _has_ high income
 
     # 3. Categorical encoding:
-    if encoding_method == 'one_hot_encoding':
-        # count number of unique values in each categorical feature
-        df, metadata_df = add_one_hot_encoding(df, metadata_df)
-    elif encoding_method is None:
-        # Default encoding follows a simple mapping of categories to integers
-        df, metadata_df = add_mapping_encoding(df, metadata_df)
+    df, metadata_df = add_categorical_encoding(df, metadata_df, encoding_method=encoding_method)
 
     # 5. split to input and labels
     x_df, y_df = df.drop(columns=[label_col]), df[label_col]
 
     return x_df, y_df, metadata_df
-
-
-def get_adult_from_dict_sample(
-        samples_dict: List[Dict[str, Any]],
-        input_file_path: str,
-        metadata_file_path: str,
-        encoding_method: str = None
-):
-    pass  # TODO: implement
 
 
 if __name__ == '__main__':

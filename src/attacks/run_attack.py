@@ -20,7 +20,7 @@ from src.attacks.tabpgd import TabPGD
 from src.datasets.load_tabular_data import TabularDataset
 from src.models.utils import load_trained_model
 
-model = load_trained_model('epoch=26-val_hp_metric=0.825-one-hot.ckpt', model_type='mlp')
+model = load_trained_model('epoch=27-val_hp_metric=0.823.ckpt', model_type='mlp')
 
 # TODO verify trainset is the same as the one used in training (for disjoint train/test)
 # hyperparameters['data_summary'] = features_metadata.summary
@@ -32,12 +32,11 @@ data_parameters = dict(dataset_name='adult',
                            encoding_method='one_hot_encoding')  # TODO CONFIG
 tab_dataset = TabularDataset(**data_parameters)
 
-
-# ce loss hack
+# CE Loss
 def model_loss(output, target):
     output = output.float()
     target = target.long()
-    return model.loss(output, target)
+    return torch.functional.F.cross_entropy(output, target)
 
 
 # Step 3: Create the ART classifier
@@ -69,6 +68,8 @@ attack = TabPGD(
     eps=1/30,
     step_size=1/3000,
     random_init=True,
+
+    summary_writer=False
 )
 X_adv = attack.generate(x=X, y=y)
 

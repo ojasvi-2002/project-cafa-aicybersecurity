@@ -1,4 +1,6 @@
 from typing import Union, Optional, List
+import logging
+
 import numpy as np
 from tqdm import tqdm
 
@@ -7,6 +9,7 @@ from art.estimators import BaseEstimator, LossGradientsMixin
 from art.estimators.classification import ClassifierMixin
 from art.summary_writer import SummaryWriter
 
+logger = logging.getLogger(__name__)
 
 class TabPGD(EvasionAttack):
     """
@@ -162,7 +165,7 @@ class TabPGD(EvasionAttack):
             # 8. Early stop who are already adversarial
             x_adv = x_adv.astype(np.float32)
             is_attack_success = self.estimator.predict(x_adv).argmax(axis=1) != y
-            print(f"ASR: {is_attack_success.mean() * 100: .2f}%")
+            logger.info(f"ASR: {is_attack_success.mean() * 100: .2f}%")
             allow_updates -= allow_updates * is_attack_success
 
             # 9. Track attack metrics # TODO

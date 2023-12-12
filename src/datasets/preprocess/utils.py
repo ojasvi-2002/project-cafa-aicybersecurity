@@ -56,3 +56,17 @@ def add_mapping_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.Dat
                                                                              enumerate(le.classes_.tolist())}]
         metadata_df.loc[metadata_df.feature_name == cat_feature, 'range'] = f'[0, {len(le.classes_)}]'
     return df, metadata_df
+
+
+def add_categorical_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame, encoding_method='one_hot_encoding') -> \
+        (pd.DataFrame, pd.DataFrame):
+    if encoding_method == 'one_hot_encoding':
+        # count number of unique values in each categorical feature
+        df, metadata_df = add_one_hot_encoding(df, metadata_df)
+    elif encoding_method is None:
+        # Default encoding follows a simple mapping of categories to integers
+        df, metadata_df = add_mapping_encoding(df, metadata_df)
+    else:
+        raise ValueError(f'encoding_method={encoding_method} is not supported')
+
+    return df, metadata_df
