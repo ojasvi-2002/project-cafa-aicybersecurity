@@ -6,19 +6,26 @@ import torch
 from sklearn.model_selection import train_test_split
 
 from src.datasets.preprocess.adult import get_adult_dataset
+from src.datasets.preprocess.bank import get_bank_dataset
+from src.datasets.preprocess.phishing import get_phishing_dataset
 
 dataset_name_to_preprocess_func = {
     'adult': get_adult_dataset,
+    'bank': get_bank_dataset,
+    'phishing': get_phishing_dataset,
 }
 
 
 class TabularDataset:
-    def __init__(self,
-                 dataset_name: str,
-                 data_file_path: str,
-                 metadata_file_path: str,
-                 encoding_method: str = 'one_hot_encoding'
-                 ):
+    def __init__(
+            self,
+            dataset_name: str,
+            data_file_path: str,
+            metadata_file_path: str,
+            encoding_method: str = 'one_hot_encoding',
+            random_seed: int = 42,
+            train_proportion: float = 0.87,
+    ):
         self.dataparameters = {
             'dataset_name': dataset_name,
             'data_file_path': data_file_path,
@@ -26,31 +33,27 @@ class TabularDataset:
             'encoding_method': encoding_method
         }
         # preprocess # TODO generalize
-        x_df, y_df, metadata_df = dataset_name_to_preprocess_func[dataset_name](
+        self.x_df, self.y_df, self.metadata_df = dataset_name_to_preprocess_func[dataset_name](
             data_file_path=data_file_path,
             metadata_file_path=metadata_file_path,
             encoding_method=encoding_method
-
         )
-        # TODO assert metadata_df is valid (wrp to x_df)
-            # - feature order is the same
-            # - label is in the end
 
-        self.x_df, self.y_df = x_df, y_df
-        # split to train and test:
-        X_train, X_test, y_train, y_test = train_test_split(x_df, y_df,
-                                                            train_size=0.87,
-                                                            random_state=42)  # TODO split should be configurable
-        # save numpy arrays
+        # Split to train and test:
+        X_train, X_test, y_train, y_test = train_test_split(self.x_df, self.y_df,
+                                                            train_size=train_proportion,
+                                                            random_state=random_seed)  # TODO split should be configurable
+        # Validate the processed input data
+        self._validate_input()
+
+        # Save numpy arrays
         self.X_train, self.X_test, self.y_train, self.y_test = (
-        X_train.values.astype(np.float32), X_test.values.astype(np.float32),
-        y_train.values.astype(np.float32), y_test.values.astype(np.float32))
+            X_train.values.astype(np.float32), X_test.values.astype(np.float32),
+            y_train.values.astype(np.float32), y_test.values.astype(np.float32))
 
-        # create features metadata object, to be used in the attack
-        self.metadata_df = metadata_df
-
-        self.feature_names = metadata_df[metadata_df.type != 'label'].feature_name.values
-        self.label_name = metadata_df[metadata_df.type == 'label'].feature_name.item()
+        # Create features metadata object, to be used in the attack
+        self.feature_names = self.metadata_df[self.metadata_df.type != 'label'].feature_name.values
+        self.label_name = self.metadata_df[self.metadata_df.type == 'label'].feature_name.item()
         self.cat_encoding_method = encoding_method
 
     @property
@@ -64,10 +67,11 @@ class TabularDataset:
         )
         return trainset
 
+    @property
     def testset(self):
         testset = torch.utils.data.TensorDataset(
-            torch.tensor(self.X_train, dtype=torch.float32),
-            torch.tensor(self.y_train, dtype=torch.long)
+            torch.tensor(self.X_test, dtype=torch.float32),
+            torch.tensor(self.y_test, dtype=torch.long)
         )
         return testset
 
@@ -144,3 +148,11 @@ class TabularDataset:
                 self.x_df.quantile(1 - robustness_gap) -
                 self.x_df.quantile(0 + robustness_gap)
         ).values
+
+    def _validate_input(self):
+        f_names_from_metadata = self.metadata_df[self.metadata_df.type != 'label'].feature_name.values.tolist()
+        f_names_from_data = [col.split('===')[0] for col in self.x_df.columns.tolist()]
+        assert  f_names_from_metadata == f_names_from_data, \
+            "Order and names of features in metadata and data should be the same"
+        assert self.y_df.name == self.metadata_df[self.metadata_df.type == 'label'].feature_name.item(), \
+            "Label name in metadata and data should be the same"

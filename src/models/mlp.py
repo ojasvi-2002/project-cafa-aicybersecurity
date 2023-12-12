@@ -123,19 +123,20 @@ def train(hyperparameters,
     """
 
     # TODO decouple data out of this function?
-    # load dataset:
+    # Load dataset:
     tab_dataset = TabularDataset(**data_parameters)
     trainset, testset = tab_dataset.trainset, tab_dataset.testset
     hyperparameters['data_parameters'] = data_parameters
 
-    # setup data loaders:  # TODO set loader to each
-    trainloader = testloader = torch.utils.data.DataLoader(trainset, batch_size=2048, shuffle=True)
+    # Setup data loaders:
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=2048, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=2048, shuffle=False)
 
-    # define the model
+    # Define the model
     model = LitMLP(input_dim=tab_dataset.n_features, output_dim=tab_dataset.n_classes,
                    **hyperparameters)
 
-    # define callbacks:
+    # Define callbacks:
     callbacks = []
     # defines checkpointing at the end of each epoch, saving the max-validation-metric model
     callbacks.append(ModelCheckpoint(monitor="val_hp_metric", mode="max",
@@ -149,7 +150,9 @@ def train(hyperparameters,
     trainer = pl.Trainer(
         max_epochs=30,
         callbacks=callbacks,
-        default_root_dir='logs/train/mlps/adult/',  # TODO configurable
+        default_root_dir=f"logs/training/mlps/{data_parameters['dataset_name']}/",  # TODO configurable
+
+        # Default configs:
         # accelerator="auto",
         # devices="auto",
         # logger=True, # tensorboard if available, otherwise csv

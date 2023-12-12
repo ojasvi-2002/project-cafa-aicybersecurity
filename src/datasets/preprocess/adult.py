@@ -45,7 +45,3 @@ def get_adult_dataset(data_file_path: str,
 
     return x_df, y_df, metadata_df
 
-
-if __name__ == '__main__':
-    get_adult_dataset("data/adult/adult.data", "data/adult/adult.metadata.csv",
-                      'one_hot_encoding')
