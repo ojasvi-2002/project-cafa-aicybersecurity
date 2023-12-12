@@ -49,7 +49,7 @@ classifier = PyTorchClassifier(
 )
 
 # Step 5: Evaluate the ART classifier on benign test examples
-X, y = tab_dataset.X_test[:100], tab_dataset.y_test[:100]
+X, y = tab_dataset.X_test[:500], tab_dataset.y_test[:500]
 predictions = classifier.predict(X)
 accuracy = np.sum(np.argmax(predictions, axis=1) == y) / len(y)
 print("Accuracy on benign test examples: {}%".format(accuracy * 100))
@@ -65,7 +65,9 @@ attack = TabPGD(
     feature_ranges=tab_dataset.feature_ranges,
     cat_encoding_method=tab_dataset.cat_encoding_method,
     one_hot_groups=tab_dataset.one_hot_groups,
-    max_iter=1
+    max_iter=100,
+    step_size=0.003,
+    random_init=True,
 )
 X_adv = attack.generate(x=X, y=y)
 
