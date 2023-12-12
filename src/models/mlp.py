@@ -24,7 +24,7 @@ class MLP(nn.Module):
 
         # define model's architecture:
         layers = [
-            nn.BatchNorm1d(input_dim, affine=False),  # normalize input
+            nn.BatchNorm1d(input_dim),  # TODO discard affine=False # normalize input
             nn.Linear(input_dim, hidden_dim),  # first layer
             nn.ReLU(),
         ]

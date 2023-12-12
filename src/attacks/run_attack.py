@@ -66,7 +66,8 @@ attack = TabPGD(
     cat_encoding_method=tab_dataset.cat_encoding_method,
     one_hot_groups=tab_dataset.one_hot_groups,
     max_iter=100,
-    step_size=0.003,
+    eps=1/30,
+    step_size=1/3000,
     random_init=True,
 )
 X_adv = attack.generate(x=X, y=y)
