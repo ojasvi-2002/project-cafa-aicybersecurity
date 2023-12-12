@@ -12,9 +12,9 @@ from art.summary_writer import SummaryWriter
 logger = logging.getLogger(__name__)
 
 
-class TabPGD(EvasionAttack):
+class CaFA(EvasionAttack):
     """
-    PGD attack on tabular data.
+    PGD attack variation on tabular data.
     """
 
     attack_params = EvasionAttack.attack_params + [
@@ -31,6 +31,7 @@ class TabPGD(EvasionAttack):
         "max_iter",
         "perturb_categorical_each_steps",
         "summary_writer",
+        # TODO keep in sync
     ]
     # Requiring implementation of 'loss_gradient()' (i.e., white-box access), via `LossGradientsMixin`.
     _estimator_requirements = (BaseEstimator, LossGradientsMixin, ClassifierMixin)
@@ -54,7 +55,8 @@ class TabPGD(EvasionAttack):
             # batch_size: int = None,  # TODO add support for batching
             eps: float = 0.03,
             step_size: float = 0.0003,
-            max_iter: int = 100,
+            max_iter: int = 500,  # main of TabCW loop
+            max_iter_tabpgd: int = 100,  # TabPGD's loop
             perturb_categorical_each_steps: int = 10,
 
             # Misc:  # TODO integrate summary_writer in the code
@@ -65,6 +67,8 @@ class TabPGD(EvasionAttack):
 
         :param estimator: A trained classifier.
         :param summary_writer: Activate summary writer for TensorBoard.
+        # TODO document all parameters
+
         """
         super().__init__(estimator=estimator,
                          summary_writer=summary_writer)
@@ -72,6 +76,7 @@ class TabPGD(EvasionAttack):
         self.eps = eps
         self.step_size = step_size
         self.max_iter = max_iter
+        self.max_iter_tabpgd = max_iter_tabpgd
         self.perturb_categorical_each_steps = perturb_categorical_each_steps
 
         self.feature_ranges = feature_ranges
@@ -90,7 +95,60 @@ class TabPGD(EvasionAttack):
                  x: np.ndarray,
                  y: np.ndarray = None,
                  mask: np.ndarray = None,
-                 **kwargs) -> np.ndarray:
+                 ):
+        """
+        Generate adversarial samples with TabCW+TabPGD and return them in an array.
+        """
+        if y is None:  # Use model predictions as correct outputs, if not provided
+            y = self.estimator.predict(x).argmax(axis=1)
+
+        x_adv = x.copy()
+        mask = np.ones_like(x) if mask is None else mask
+        mask = mask.astype(np.float32)
+        new_mask = mask.copy()
+
+        calc_l0 = lambda _x1, _x2: (np.abs(_x1 - _x2) > 1e-6).sum(axis=1)
+        prev_attack_l0_vals = np.full(x.shape[0], np.inf, dtype=np.float32)
+        i = 0
+
+        while i < self.max_iter and mask.sum() > 0:
+            if i > 0:
+                # Prevent perturbation of 'least useful' feature
+                least_imp_feature = self._get_least_important_feature(x=x, x_adv=x_adv, y=y, mask=mask)
+                for sample_idx, least_imp_features in enumerate(least_imp_feature):
+                    new_mask[sample_idx, least_imp_features] = 0
+
+            # Perform TabPGD attack
+            new_x_adv = self.generate_with_tabpgd(x=x, y=y, mask=new_mask)
+
+            # Pick the best new adversarial samples and update with them
+            is_attack_success = self.estimator.predict(new_x_adv).argmax(axis=1) != y
+            attack_l0_vals = calc_l0(new_x_adv, x)
+            is_lower_l0 = attack_l0_vals < prev_attack_l0_vals
+            update_samples = is_attack_success & is_lower_l0
+            x_adv[update_samples] = new_x_adv[update_samples]
+            mask[update_samples] = new_mask[update_samples]  # don't update mask for non-updated samples
+
+            # Evaluate metrics
+            print(f"[{i}] success(x_adv, y):", is_attack_success.mean())
+            print(f"[{i}] l0(x_adv):", calc_l0(x_adv, x).mean())
+            print(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
+            print(f"[{i}] update rate:", update_samples.mean())
+
+            # Perform updates
+            i += 1  # decrease remaining iterations
+            # prev_is_attack_success = is_attack_success
+            prev_attack_l0_vals = attack_l0_vals
+
+            # TODO early-stop when ~10 iteration without update (?)
+
+        return x_adv
+
+    def generate_with_tabpgd(self,
+                             x: np.ndarray,
+                             y: np.ndarray,
+                             mask: np.ndarray = None,
+                             **kwargs) -> np.ndarray:
         """
         Generate adversarial samples and return them in an array.
 
@@ -100,6 +158,9 @@ class TabPGD(EvasionAttack):
                      Note that a mask should apply to One-Hot groups altogether.
         :return: An array holding the adversarial examples.
         """
+        # Use model predictions as correct outputs, if not provided
+        if y is None:
+            y = self.estimator.predict(x).argmax(axis=1)
 
         x, y = x.astype(np.float32), y.astype(np.int64)
         allow_updates = np.ones(x.shape[0], dtype=np.float32)
@@ -111,7 +172,7 @@ class TabPGD(EvasionAttack):
 
         x_adv = x.copy()
 
-        for step in tqdm(range(self.max_iter)):
+        for step in tqdm(range(self.max_iter_tabpgd)):
             x_adv_before_perturb = x_adv.copy()  # for validation purposes
 
             # Inject allow_updates-mask to 'mask'
@@ -129,8 +190,9 @@ class TabPGD(EvasionAttack):
                 # Get gradient wrt loss; invert it if attack is targeted
                 # TODO: should the mask be applied before calculating the loss or something?
                 grad = self.estimator.loss_gradient(x, y)  # * (1 - 2 * int(self.targeted)) TODO targeted
+                grad *= mask
                 # Update accumulated gradients
-                accum_grads += grad * mask
+                accum_grads += grad
                 # Set the temporal perturbation (each feature alters it according to its character)
                 perturbation_temp = self.step_size * self.standard_factors * np.sign(grad)
 
@@ -170,7 +232,56 @@ class TabPGD(EvasionAttack):
 
         return x_adv
 
-    def _init_epsilon_ball(self, x: np.ndarray) -> np.ndarray:
+    def _get_least_important_feature(self,
+                                     x: np.ndarray,
+                                     x_adv: np.ndarray,
+                                     y: np.ndarray,
+                                     mask: np.ndarray,
+                                     ) -> List[List[int]]:
+        # TODO insert randomness? specifically, for samples failed in previous iterations?
+        delta = x_adv - x
+        grad = self.estimator.loss_gradient(x_adv, y)
+        cw_score = np.abs(grad * delta)
+
+        # TODO if one-hot encoding
+        # Aggregate score for One-Hot-Encoded feature over all categories
+        for oh_group in self.one_hot_groups:
+            for sample_idx in range(cw_score.shape[0]):
+                cw_score[sample_idx, oh_group] = np.abs(cw_score[sample_idx, oh_group]).sum()
+
+        # TODO TABNET
+        """ 
+        # TABNET OPTION 
+        if self.model_type == 'tabnet':
+            embedding_grads = additional_grad_info['embedding_grad']
+            unordered_indices = self.dataset.unordered_indices
+
+            # for each categorical feature, get the gradient of the embedding
+            for unordered_feat_idx, feat_idx in enumerate(unordered_indices):
+                for sample_idx in range(cw_score.shape[0]):
+                    # OPTION 1:  # cw_score[sample_idx, feat_idx] = embedding_grads[unordered_feat_idx][batch_x[:, feat_idx].long()].abs().sum()
+                    cw_score[sample_idx, feat_idx] = embedding_grads[unordered_feat_idx].sum()
+            cw_score[:, unordered_indices] *= (x_adv_delta[:, unordered_indices] != 0)
+            # cw_score = cw_score.abs()  # currently disabled
+        """
+
+        cw_score = cw_score / self.standard_factors
+        # Non perturbed feature should get maximal score (as they are meaningless)
+        cw_score[~mask.astype(bool)] = np.inf
+
+        # Get minimal score for each sample
+        least_imp_feature_per_sample = [[score.item()] for score in cw_score.argmin(axis=1)]
+
+        # Expand the list of features, per sample, to all the One-Hot involved coordinates
+        for sample_idx in range(len(least_imp_feature_per_sample)):
+            for oh_group in self.one_hot_groups:
+                if least_imp_feature_per_sample[sample_idx][0] in oh_group:
+                    least_imp_feature_per_sample[sample_idx] = oh_group
+                    break  # can stop looking for the oh group
+
+        return least_imp_feature_per_sample
+
+    def _init_epsilon_ball(self, x: np.ndarray) -> (np.ndarray, np.ndarray):
         epsilon_ball_upper = x + (self.eps * self.standard_factors)
         epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
 

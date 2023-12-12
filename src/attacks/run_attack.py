@@ -16,7 +16,7 @@ from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
 from art.utils import load_mnist
 
-from src.attacks.tabpgd import TabPGD
+from src.attacks.cafa import CaFA
 from src.datasets.load_tabular_data import TabularDataset
 from src.models.utils import load_trained_model
 
@@ -70,7 +70,7 @@ print("Accuracy on benign test examples: {}%".format(accuracy * 100))
 
 # Step 6: Generate adversarial test examples
 # attack = FastGradientMethod(estimator=classifier, eps=5)
-attack = TabPGD(
+attack = CaFA(
     estimator=classifier,
     standard_factors=tab_dataset.standard_factors,
     cat_indices=tab_dataset.cat_indices,
