@@ -10,15 +10,15 @@ from z3 import *
 class DenialConstraint:
     def __init__(self,
                  dc_string: str,  # the string representing the DC, assuming FastADC output format.
-                 x_train_df: pd.DataFrame,
-                 dc_file_idx: int = None):
+                 dc_file_idx: int = None,
+                 other_tuples_data: pd.DataFrame = None):
         self.dc_string = dc_string
-        self.x_train_df = x_train_df
         self.dc_file_idx = dc_file_idx
-
+        self.other_tuples_data = None
         self.dc_predicates: List[DCPredicate] = []
 
         self._parse_dc_from_string()
+        self.set_other_tuples_data(other_tuples_data)
 
     def _parse_dc_from_string(self):
         """
@@ -45,9 +45,9 @@ class DenialConstraint:
         constraints_list = []
 
         # for each "other_tuple" we append the DC constraint.
-        for _, other_tuple in self.tuples_data.iterrows():
+        for _, other_tuple in self.other_tuples_data.iterrows():
             inner_constraint = []
-            for pred in self.predicates:
+            for pred in self.dc_predicates:
                 inner_constraint.append(pred.get_z3_formula(literals_dict, other_tuple))
             constraints_list.append(Not(And(*inner_constraint)))  # append the full DC with other_tuple
 
@@ -60,7 +60,7 @@ class DenialConstraint:
         is_sat = True
         sat_predicates_count = 0
 
-        for predicate in self.predicates:
+        for predicate in self.dc_predicates:
             curr_pred_sat = predicate.check_pair_satisfaction((target_tuple, other_tuple))
             is_sat = is_sat and curr_pred_sat
             sat_predicates_count += int(curr_pred_sat)
@@ -70,15 +70,16 @@ class DenialConstraint:
 
     def check_satisfaction_all_pairs(self, target_tuple: dict):
         """
-        Returns array of satisfaction of `target_tuple` with all pairs (i.e. with `self.tuples_data`)
+        Returns array of satisfaction of `target_tuple` with all pairs (i.e. with `self.other_tuples_data`)
 
         Basically, an extended (array) version of `check_pair_satisfaction`
         """
-        is_sat_arr = np.ones(len(self.tuples_data), dtype=bool)
-        sat_predicates_count_arr = np.zeros(len(self.tuples_data), dtype=np.int8)
+        assert self.other_tuples_data is not None, "Must set `other_tuples_data` before calling this function"
+        is_sat_arr = np.ones(len(self.other_tuples_data), dtype=bool)
+        sat_predicates_count_arr = np.zeros(len(self.other_tuples_data), dtype=np.int8)
 
-        for predicate in self.predicates:
-            curr_pred_sat_arr = predicate.check_pair_satisfaction((target_tuple, self.tuples_data))
+        for predicate in self.dc_predicates:
+            curr_pred_sat_arr = predicate.check_pair_satisfaction((target_tuple, self.other_tuples_data))
             is_sat_arr = is_sat_arr & curr_pred_sat_arr
             sat_predicates_count_arr += curr_pred_sat_arr
 
@@ -88,7 +89,10 @@ class DenialConstraint:
 
     def get_predicate_count(self):
         # returns the number of predicates that compose the DC
-        return len(self.predicates)
+        return len(self.dc_predicates)
+
+    def set_other_tuples_data(self, other_tuples_data: pd.DataFrame):
+        self.other_tuples_data = other_tuples_data
 
     @lru_cache(maxsize=None)
     def does_given_feature_sat_dc(self, feature_name: str, feature_val, **kwargs) -> np.array:
@@ -101,13 +105,13 @@ class DenialConstraint:
         target_tuple = {feature_name: feature_val}
 
         # 1. Define the satisfaction tracker (per other-tuple)
-        is_feature_sat_dc_arr = np.ones(len(self.tuples_data), dtype=int)
+        is_feature_sat_dc_arr = np.ones(len(self.other_tuples_data), dtype=int)
 
         # 2. Iterate on relevant predicates and check sat.
-        for pred in self.predicates:
+        for pred in self.dc_predicates:
             if pred.col1_name != feature_name:
                 continue  # we only care about predicates with the given feature_name.
-            is_feature_sat_dc_arr += ~pred.check_pair_satisfaction((target_tuple, self.tuples_data))
+            is_feature_sat_dc_arr += ~pred.check_pair_satisfaction((target_tuple, self.other_tuples_data))
 
         return is_feature_sat_dc_arr >= 1  # feature_sat_dc IFF _any_ relevant predicate was evaluated 'False'
 
@@ -140,11 +144,11 @@ class DCPredicate:
         return self.check_pair_satisfaction((row1_literals, row2_values))
 
 
-def load_dcs(dcs_txt_path: str, x_train_df: pd.DataFrame) -> List[DenialConstraint]:
+def load_dcs(dcs_txt_path: str) -> List[DenialConstraint]:
     dcs = []
     # Loads constraints from txt
     with open(dcs_txt_path, "r") as f:
         for dc_file_idx, dc_string in enumerate(f):
-            dcs.append(DenialConstraint(dc_string=dc_string, x_train_df=x_train_df,
+            dcs.append(DenialConstraint(dc_string=dc_string,
                                         dc_file_idx=dc_file_idx))
     return dcs

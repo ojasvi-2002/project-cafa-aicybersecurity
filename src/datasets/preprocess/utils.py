@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn import preprocessing
 
 
-def add_one_hot_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+def _add_one_hot_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
     """
         return updated df and metadata_df, after one-hot-encoding all categorical features in df
     """
@@ -42,7 +42,7 @@ def add_one_hot_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.Dat
     return df, pd.DataFrame(new_metadata_rows)
 
 
-def add_mapping_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
+def _add_mapping_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
     """
         return updated df and metadata_df, after mapping all categorical features in df to integers
     """
@@ -62,10 +62,10 @@ def add_categorical_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame, encodi
         (pd.DataFrame, pd.DataFrame):
     if encoding_method == 'one_hot_encoding':
         # count number of unique values in each categorical feature
-        df, metadata_df = add_one_hot_encoding(df, metadata_df)
+        df, metadata_df = _add_one_hot_encoding(df, metadata_df)
     elif encoding_method is None:
         # Default encoding follows a simple mapping of categories to integers
-        df, metadata_df = add_mapping_encoding(df, metadata_df)
+        df, metadata_df = _add_mapping_encoding(df, metadata_df)
     else:
         raise ValueError(f'encoding_method={encoding_method} is not supported')
 
