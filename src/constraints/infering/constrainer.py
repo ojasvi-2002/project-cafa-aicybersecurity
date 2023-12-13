@@ -12,15 +12,21 @@ from z3 import *
 
 class Constrainer(ABC):
     @abstractmethod
-    def check_sat(self, sample: np.ndarray):
+    def check_sat(self,
+                  sample: np.ndarray,
+                  sample_original: np.ndarray = None) -> bool:
         pass
 
     @abstractmethod
-    def project_sample(self, sample: np.ndarray, freed_literals: list):
+    def project_sample(self,
+                       sample: np.ndarray,
+                       freed_literals: list,
+                       sample_original: np.ndarray = None) -> Tuple[bool, np.ndarray]:
         pass
 
     @abstractmethod
-    def get_literals_scores(self, sample: np.ndarray):
+    def get_literals_scores(self,
+                            sample: np.ndarray):
         # the higher the score the more constrained the literal
         pass
 
