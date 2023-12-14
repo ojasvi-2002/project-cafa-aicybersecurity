@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
+from z3 import *
 
 from functools import lru_cache
 from typing import Dict, List, Tuple, Union
-
-from z3 import *
 
 
 class DenialConstraint:
@@ -119,8 +118,8 @@ class DenialConstraint:
 class DCPredicate:
     def __init__(self, col1_name: str, col1_var: int, operator: str, col2_name: str, col2_var: int):
         assert operator in ["==", "<=", ">=", ">", "<", "<>"]
-        self.col1_name, self.col1_var = col1_name, col1_var
-        self.col2_name, self.col2_var = col2_name, col2_var
+        self.col1_name, self.col1_var = col1_name.split('(')[0], col1_var
+        self.col2_name, self.col2_var = col2_name.split('(')[0], col2_var
         self.operator = operator
 
     def check_pair_satisfaction(self, rows: Tuple[dict, Union[dict, pd.DataFrame, pd.Series]]) \

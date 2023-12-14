@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.constraints.infering.constrainer import Constrainer
+from src.constraints.utilizing.constrainer import Constrainer
 
 
 class ConstraintProjector:

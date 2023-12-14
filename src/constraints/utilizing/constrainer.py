@@ -5,9 +5,9 @@ from typing import Dict, Tuple, List, Type
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from z3 import *
 
 from src.constraints.modeling.dcs_model import DenialConstraint
-from z3 import *
 
 
 class Constrainer(ABC):
@@ -35,8 +35,6 @@ class DCsConstrainer(Constrainer):
     def __init__(
             self,
             x_tuples_df: pd.DataFrame,  # must be the same as mining
-            n_dcs: int,
-            n_tuples: int,
             eval_csv_out_path: str,
 
             # Data properties:
@@ -45,8 +43,12 @@ class DCsConstrainer(Constrainer):
             is_feature_continuous: List[bool],
             feature_types: List[type],
             feature_ranges: List[Tuple[float, float]],
-            feature_names_dcs_format: List[str],
+            feature_names_dcs_format: List[str],  # TODO discard
             standard_factors: List[float],
+
+            # DCs config:
+            n_dcs: int = 5000,
+            n_tuples: int = 1,
 
             # Attack parameters:
             limit_cost_ball: bool = True,
@@ -111,7 +113,7 @@ class DCsConstrainer(Constrainer):
     def _check_sat_with_given_literals(self,
                                        sample: np.array,
                                        sample_original: np.array = None,
-                                       check_sat_only: bool = None) -> Union[bool, Tuple[bool, ModelRef]]:
+                                       check_sat_only: bool = None):
         """
             - If `self.limit_cost_ball` and `original_sample` is given, then the projection also enforces the cost-ball.
         """
@@ -126,7 +128,6 @@ class DCsConstrainer(Constrainer):
             if np.isnan(f_val):  # `nan` means a literal to free
                 continue
             # asserts each feature to have the given sample's value
-            dc_feature_name = self.feature_names_dcs_format[f_idx]
             assignment.append(_get_partial_assignment(f_idx, f_val, self.literals_dict))
 
         # Add any additional (e.g., cost) assertions
@@ -162,10 +163,11 @@ class DCsConstrainer(Constrainer):
         is_sat, sat_model = self._check_sat_with_given_literals(projected_sample, sample_original=sample_original)
 
         # 2. Fetch the sat-solver solution after the projection, and update the sample
-        for freed_literal_idx in literals_to_free:
-            freed_literal = self.literals_dict[freed_literal_idx]
-            freed_literal_type: Type = self.feature_types[freed_literal_idx]
-            projected_sample[freed_literal_idx] = freed_literal_type(eval(sat_model[freed_literal].as_string()))
+        if is_sat:  # if projection successful
+            for freed_literal_idx in literals_to_free:
+                freed_literal = self.literals_dict[freed_literal_idx]
+                freed_literal_type: Type = self.feature_types[freed_literal_idx]
+                projected_sample[freed_literal_idx] = freed_literal_type(eval(sat_model[freed_literal].as_string()))
 
         return is_sat, projected_sample
 
@@ -184,8 +186,8 @@ class DCsConstrainer(Constrainer):
             # TODO can make it parallel to accelerate projection
             # Option II: rank feature by its ability to satisfy _alone_ DCs.
             for i, dc in enumerate(self.dcs):
-                dc_feature_name = self.feature_names_dcs_format[f_idx]
-                features_sat[f_idx] += dc.does_given_feature_sat_dc(dc_feature_name, f_val, dc_idx=i).mean()
+                feature_name = self.feature_names[f_idx]
+                features_sat[f_idx] += dc.does_given_feature_sat_dc(feature_name, f_val, dc_idx=i).mean()
 
         return features_sat
 
@@ -196,23 +198,25 @@ class DCsConstrainer(Constrainer):
 
         # 1. Extract the support values and initialize literals
         for idx, feature_name in enumerate(self.feature_names):
-            if self.is_feature_ordinal[idx]:
-                literals_dict[idx] = Int(feature_name)  # add feature as literal
-            elif self.is_feature_continuous[idx]:
+            if self.is_feature_continuous[idx]:
                 literals_dict[idx] = Real(feature_name)  # add feature as literal
+            else:  # if self.is_feature_ordinal[idx] or categorical:
+                literals_dict[idx] = Int(feature_name)  # add feature as literal
 
         s = Solver()
         # 2. enforce support range
         for idx, feature_range in enumerate(self.feature_ranges):
             literal = literals_dict[idx]
             lower, upper = feature_range
+            lower, upper = float(lower), float(upper)
+            if lower == -np.inf: lower = -2**32
+            if upper == np.inf: upper = 2**32
             s.add(lower <= literal, literal <= upper)
 
         # 3. enforce the constraints
-        literals_dict_for_dc = {f_name_dc: literals_dict[f_idx] for f_idx, f_name_dc
-                                in enumerate(self.feature_names_dcs_format)}
+        literals_dict_named = {f_name: literals_dict[f_idx] for f_idx, f_name in enumerate(self.feature_names)}
         for dc in tqdm(self.dcs, desc='Builds DCs CNF'):
-            s.add(dc.get_z3_formula(literals_dict_for_dc))
+            s.add(dc.get_z3_formula(literals_dict_named))
 
         return s, literals_dict
 
@@ -229,5 +233,8 @@ class DCsConstrainer(Constrainer):
             upper = original_val + (self.cost_ball_eps * self.standard_factors[f_idx])
             if self.is_feature_ordinal[f_idx]:  # we round ball for integers
                 lower, upper = math.floor(lower), math.ceil(upper)
+            lower, upper = float(lower), float(upper)
+            if lower == -np.inf: lower = -2 ** 32
+            if upper == np.inf: upper = 2 ** 32
             cost_assertions += [lower <= literal, literal <= upper]
         return cost_assertions
