@@ -26,17 +26,29 @@ class ConstraintProjector:
         sample = sample.copy()
 
         before_projection_sat = self.constrainer.check_sat(sample, sample_original=sample_original)
-        if before_projection_sat:
-            return before_projection_sat, sample  # in case sample obeys the constraints, simply return it
+        if before_projection_sat or n_free_literals == 0:
+            # in case sample obeys the constraints / no projection desired, simply return it
+            return before_projection_sat, sample
 
         # otherwise - project by sat solver:
         # 1. Find the literals to free
         literals_scores = self.constrainer.get_literals_scores(sample)
-        literals_to_free = literals_scores.argsort()[:n_free_literals]
-        # 2. Attempt to project the sample
-        is_projection_succ, projected_sample = self.constrainer.project_sample(sample, literals_to_free)
+        literals_to_free = literals_scores.argsort()[:n_free_literals]  # default literals to free
+        if len(np.unique(literals_scores)) == 1:
+            # Sample from the top `n_free_literals` literals to free, in case of tie
+            literals_to_free = np.random.choice(len(literals_scores), size=n_free_literals, replace=False)
+        else:
+            # TODO make sure the following line is printed occasionally (otherwise, inspect the score system)
+            print("sometimes the literals cost differ!", literals_scores)
 
-        return is_projection_succ, sample
+        # TODO [currently disabled] consider a softmax option (with `p=softmax(-literals_scores))`)
+        # temp_factor = 1  # the lower - the more uniform (0 -> uniform)
+        # softmax = lambda x: np.exp(temp_factor * x) / np.sum(np.exp(temp_factor * x))
+        # 2. Attempt to project the sample
+        is_projection_succ, projected_sample = self.constrainer.project_sample(sample, literals_to_free,
+                                                                               sample_original=sample_original)
+
+        return is_projection_succ, projected_sample
 
     def project(self, sample: np.ndarray, sample_original: np.ndarray) -> (bool, np.ndarray):
         """

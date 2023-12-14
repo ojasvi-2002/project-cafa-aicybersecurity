@@ -46,7 +46,8 @@ model = load_trained_model(f"{data_params['dataset_name']}-mlp.ckpt", model_type
 
 # TODO verify 'model'-s training data as the same properties as 'tab_dataset'
 
-# CE Loss
+
+# CE Loss  # TODO resolve this hack
 def model_loss(output, target):
     output = output.float()
     target = target.long()
@@ -67,7 +68,7 @@ predictions = classifier.predict(X)
 accuracy = np.sum(np.argmax(predictions, axis=1) == y) / len(y)
 print("Accuracy on benign test examples: {}%".format(accuracy * 100))
 
-# Step 6: Generate adversarial test examples
+# Step 6: Generate adversarial test examples  -------------------------------------------------------------------------
 # attack = FastGradientMethod(estimator=classifier, eps=5)
 attack = CaFA(
     estimator=classifier,
@@ -117,7 +118,7 @@ constrainer = DCsConstrainer(
     feature_ranges=tab_dcs_dataset.feature_ranges,
     feature_names_dcs_format=tab_dcs_dataset.feature_names_dcs_format,
     standard_factors=tab_dcs_dataset.standard_factors,
-    n_dcs=3000,
+    n_dcs=5000,
     n_tuples=1,
     # limit_cost_ball  # TODO examine
 )
@@ -166,4 +167,4 @@ print("before attack:", eval_orig_samples)
 eval_adv_samples = evaluate_crafted_samples(X_adv=X_adv, X_orig=X, y=y, **eval_params)
 print("after cafa:", eval_adv_samples)
 eval_adv_proj_samples = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
-print("after projection:", eval_adv_proj_samples)  # TODO fix bug: currently the metrics are similar
+print("after projection:", eval_adv_proj_samples)

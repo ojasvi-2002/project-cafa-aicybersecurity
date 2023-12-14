@@ -108,8 +108,12 @@ class DenialConstraint:
 
         # 2. Iterate on relevant predicates and check sat.
         for pred in self.dc_predicates:
+            if pred.col1_name != pred.col1_name:
+                print(f"[WARNING] Predicate {pred} includes two different variables; "
+                      f"as opposed to this heuristics assumption.")
             if pred.col1_name != feature_name:
                 continue  # we only care about predicates with the given feature_name.
+
             is_feature_sat_dc_arr += ~pred.check_pair_satisfaction((target_tuple, self.other_tuples_data))
 
         is_feature_sat_dc_arr = np.array(is_feature_sat_dc_arr)

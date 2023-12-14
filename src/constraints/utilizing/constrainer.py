@@ -14,14 +14,14 @@ class Constrainer(ABC):
     @abstractmethod
     def check_sat(self,
                   sample: np.ndarray,
-                  sample_original: np.ndarray = None) -> bool:
+                  **kwargs) -> bool:
         pass
 
     @abstractmethod
     def project_sample(self,
                        sample: np.ndarray,
                        freed_literals: list,
-                       sample_original: np.ndarray = None) -> Tuple[bool, np.ndarray]:
+                       **kwargs) -> Tuple[bool, np.ndarray]:
         pass
 
     @abstractmethod
@@ -168,10 +168,12 @@ class DCsConstrainer(Constrainer):
                 freed_literal = self.literals_dict[freed_literal_idx]
                 freed_literal_type: Type = self.feature_types[freed_literal_idx]
                 projected_sample[freed_literal_idx] = freed_literal_type(eval(sat_model[freed_literal].as_string()))
+        else:
+            projected_sample = sample  # unsuccessful projection, return the original sample
 
         return is_sat, projected_sample
 
-    def get_literals_scores(self, sample: np.ndarray) -> np.array:  # # TODO continue editing
+    def get_literals_scores(self, sample: np.ndarray) -> np.array:
         """
         :return: a list of indices, order by their score, from lowest to highest.
             (the lower the score the less constrained the literal)
