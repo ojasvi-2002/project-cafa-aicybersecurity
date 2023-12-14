@@ -107,7 +107,6 @@ class CaFA(EvasionAttack):
         mask = mask.astype(np.float32)
         new_mask = mask.copy()
 
-        calc_l0 = lambda _x1, _x2: (np.abs(_x1 - _x2) > 1e-6).sum(axis=1)
         prev_attack_l0_vals = np.full(x.shape[0], np.inf, dtype=np.float32)
         i = 0
 
@@ -123,7 +122,7 @@ class CaFA(EvasionAttack):
 
             # Pick the best new adversarial samples and update with them
             is_attack_success = self.estimator.predict(new_x_adv).argmax(axis=1) != y
-            attack_l0_vals = calc_l0(new_x_adv, x)
+            attack_l0_vals = self.calc_l0_cost(new_x_adv, x)
             is_lower_l0 = attack_l0_vals < prev_attack_l0_vals
             update_samples = is_attack_success & is_lower_l0
             x_adv[update_samples] = new_x_adv[update_samples]
@@ -131,7 +130,7 @@ class CaFA(EvasionAttack):
 
             # Evaluate metrics
             print(f"[{i}] success(x_adv, y):", (self.estimator.predict(x_adv).argmax(axis=1) != y).mean())
-            print(f"[{i}] l0(x_adv):", calc_l0(x_adv, x).mean())
+            print(f"[{i}] l0(x_adv):", self.calc_l0_cost(x_adv, x).mean())
             print(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
             print(f"[{i}] update rate:", update_samples.mean())
 
@@ -375,3 +374,16 @@ class CaFA(EvasionAttack):
             'cat and cont indices should be disjoint'
         assert len(set(self.cont_indices) & set(self.ordinal_indices)) == 0, \
             'cont and ordinal indices should be disjoint'
+
+    @staticmethod
+    def calc_l0_cost(x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
+        return (np.abs(x1 - x2) > 1e-7).sum(axis=-1)
+
+    @staticmethod
+    def calc_standard_linf_cost(x1: np.ndarray, x2: np.ndarray,
+                                standard_factors: np.ndarray,
+                                relevant_indices: np.ndarray = None):
+        # TODO verify this aligns with the eps cost ball definition above
+        if relevant_indices is None:
+            relevant_indices = np.arange(x1.shape[1])
+        return (np.abs(x1 - x2)[:, relevant_indices] / standard_factors[relevant_indices]).max(axis=-1)

@@ -231,4 +231,5 @@ class TabularDataset:
                 f_idx_in_origin_dataset = (from_dataset.feature_names == feature_name).argmax()
                 sample_new[f_idx] = sample[f_idx_in_origin_dataset]
 
+        sample_new = sample_new.astype(np.float32)
         return sample_new

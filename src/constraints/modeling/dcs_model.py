@@ -112,6 +112,7 @@ class DenialConstraint:
                 continue  # we only care about predicates with the given feature_name.
             is_feature_sat_dc_arr += ~pred.check_pair_satisfaction((target_tuple, self.other_tuples_data))
 
+        is_feature_sat_dc_arr = np.array(is_feature_sat_dc_arr)
         return is_feature_sat_dc_arr >= 1  # feature_sat_dc IFF _any_ relevant predicate was evaluated 'False'
 
 
