@@ -11,6 +11,8 @@ class ConstraintProjector:
                  upper_projection_budget_bound: float = 0.5):
         """
         :param constrainer: Object representing the constraints projected onto, implemented with Constrainer API.
+        :param upper_projection_budget_bound: The upper bound on the projection budget, i.e., the fraction features
+                                              freed in projection.
         """
         self.constrainer: Constrainer = constrainer
         self.upper_projection_budget_bound = upper_projection_budget_bound

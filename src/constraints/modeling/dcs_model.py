@@ -146,13 +146,3 @@ class DCPredicate:
 
     def get_z3_formula(self, row1_literals: Dict[str, ExprRef], row2_values: pd.Series):
         return self.check_pair_satisfaction((row1_literals, row2_values))
-
-
-def load_dcs(dcs_txt_path: str) -> List[DenialConstraint]:
-    dcs = []
-    # Loads constraints from txt
-    with open(dcs_txt_path, "r") as f:
-        for dc_file_idx, dc_string in enumerate(f):
-            dcs.append(DenialConstraint(dc_string=dc_string,
-                                        dc_file_idx=dc_file_idx))
-    return dcs

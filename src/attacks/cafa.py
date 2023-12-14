@@ -41,11 +41,11 @@ class CaFA(EvasionAttack):
             estimator: "CLASSIFIER_CLASS_LOSS_GRADIENTS_TYPE",
 
             # Data-specific parameters:
-            standard_factors: np.ndarray,
             cat_indices: np.ndarray,
             ordinal_indices: np.ndarray,
             cont_indices: np.ndarray,
             feature_ranges: np.ndarray,  # shape (n_features, 2) with min/max values for each feature
+            standard_factors: np.ndarray = None,
 
             cat_encoding_method: str = 'one_hot_encoding',
             one_hot_groups: List[np.ndarray] = None,
@@ -382,8 +382,9 @@ class CaFA(EvasionAttack):
     @staticmethod
     def calc_standard_linf_cost(x1: np.ndarray, x2: np.ndarray,
                                 standard_factors: np.ndarray,
-                                relevant_indices: np.ndarray = None):
-        # TODO verify this aligns with the eps cost ball definition above
+                                relevant_indices: Optional[np.ndarray] = None) -> np.ndarray:
         if relevant_indices is None:
             relevant_indices = np.arange(x1.shape[1])
-        return (np.abs(x1 - x2)[:, relevant_indices] / standard_factors[relevant_indices]).max(axis=-1)
+        delta = np.abs(x1 - x2)
+        # delta[:, ordinal_indices] = np.floor(delta[:, ordinal_indices])  # currently disabled
+        return (delta[:, relevant_indices] / standard_factors[relevant_indices]).max(axis=-1)

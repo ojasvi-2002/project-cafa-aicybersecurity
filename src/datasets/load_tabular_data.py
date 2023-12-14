@@ -44,7 +44,9 @@ class TabularDataset:
         # Split to train and test:
         X_train, X_test, y_train, y_test = train_test_split(self.x_df, self.y_df,
                                                             train_size=train_proportion,
-                                                            random_state=random_seed)  # TODO split should be configurable
+                                                            random_state=random_seed,
+                                                            shuffle=True)
+
         # Validate the processed input data
         self._validate_input()
 
@@ -158,6 +160,10 @@ class TabularDataset:
     @property
     def is_feature_continuous(self):
         return (self.metadata_df[self.metadata_df.type != 'label'].type == 'continuous').tolist()
+
+    @property
+    def is_feature_categorical(self):
+        return (self.metadata_df[self.metadata_df.type != 'label'].type == 'categorical').tolist()
 
     @property
     def feature_types(self) -> List[Type]:

@@ -7,6 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 from z3 import *
 
+from src.constraints.mining.mine_dcs import load_evaluated_dcs
 from src.constraints.modeling.dcs_model import DenialConstraint
 
 
@@ -41,9 +42,9 @@ class DCsConstrainer(Constrainer):
             feature_names: list,
             is_feature_ordinal: List[bool],
             is_feature_continuous: List[bool],
+            is_feature_categorical: List[bool],
             feature_types: List[type],
             feature_ranges: List[Tuple[float, float]],
-            feature_names_dcs_format: List[str],  # TODO discard
             standard_factors: List[float],
 
             # DCs config:
@@ -52,13 +53,12 @@ class DCsConstrainer(Constrainer):
 
             # Attack parameters:
             limit_cost_ball: bool = True,
-            cost_ball_eps: float = 1/30,
+            cost_ball_eps: float = 1 / 30,
     ):
         self.limit_cost_ball = limit_cost_ball
 
         # we define the top scores as the DCs and set them
-        self.dc_constraints_eval = pd.read_csv(eval_csv_out_path,
-                                               converters={'best_other_tuples': literal_eval})
+        self.dc_constraints_eval = load_evaluated_dcs(eval_csv_out_path)
         self.x_tuples_df, self.n_dcs, self.n_tuples = x_tuples_df, n_dcs, n_tuples
         self.dcs = None
         self._get_dcs()
@@ -70,8 +70,8 @@ class DCsConstrainer(Constrainer):
         self.feature_names = feature_names
         self.is_feature_ordinal = is_feature_ordinal
         self.is_feature_continuous = is_feature_continuous
+        self.is_feature_categorical = is_feature_categorical
         self.feature_ranges = feature_ranges
-        self.feature_names_dcs_format = feature_names_dcs_format
         self.feature_types = feature_types
         self.standard_factors = standard_factors
 
@@ -132,7 +132,8 @@ class DCsConstrainer(Constrainer):
 
         # Add any additional (e.g., cost) assertions
         additional_assertions = []
-        if self.limit_cost_ball is not None and sample_original is not None:
+        if self.limit_cost_ball is not None:
+            assert sample_original is not None, "Must provide `sample_original` to limit the cost-ball"
             additional_assertions = self._get_cost_ball_assertions(sample_original)
 
         is_sat = self.solver.check(*assignment, *additional_assertions)  # returns satisfiability
@@ -211,8 +212,8 @@ class DCsConstrainer(Constrainer):
             literal = literals_dict[idx]
             lower, upper = feature_range
             lower, upper = float(lower), float(upper)
-            if lower == -np.inf: lower = -2**32
-            if upper == np.inf: upper = 2**32
+            if lower == -np.inf: lower = -2 ** 32
+            if upper == np.inf: upper = 2 ** 32
             s.add(lower <= literal, literal <= upper)
 
         # 3. enforce the constraints
@@ -229,6 +230,8 @@ class DCsConstrainer(Constrainer):
         """
         cost_assertions = []
         for f_idx, f_name in enumerate(self.feature_names):
+            if self.is_feature_categorical[f_idx]:  # we don't apply cost ball for categorical
+                continue
             literal = self.literals_dict[f_idx]
             original_val = sample_original[f_idx]
             lower = original_val - (self.cost_ball_eps * self.standard_factors[f_idx])

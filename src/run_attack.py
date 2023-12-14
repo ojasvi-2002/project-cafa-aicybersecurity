@@ -114,13 +114,14 @@ constrainer = DCsConstrainer(
     feature_names=tab_dcs_dataset.feature_names,
     is_feature_ordinal=tab_dcs_dataset.is_feature_ordinal,
     is_feature_continuous=tab_dcs_dataset.is_feature_continuous,
+    is_feature_categorical=tab_dcs_dataset.is_feature_categorical,
     feature_types=tab_dcs_dataset.feature_types,
     feature_ranges=tab_dcs_dataset.feature_ranges,
-    feature_names_dcs_format=tab_dcs_dataset.feature_names_dcs_format,
     standard_factors=tab_dcs_dataset.standard_factors,
     n_dcs=5000,
     n_tuples=1,
-    # limit_cost_ball  # TODO examine
+    limit_cost_ball=False,
+    cost_ball_eps=1/30,
 )
 
 from src.constraints.constraint_projector import ConstraintProjector

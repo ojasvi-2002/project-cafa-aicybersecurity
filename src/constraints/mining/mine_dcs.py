@@ -8,37 +8,41 @@ import pandas as pd
 from tqdm import tqdm
 from ast import literal_eval
 
-from src.constraints.modeling.dcs_model import DenialConstraint, load_dcs
+from src.constraints.modeling.dcs_model import DenialConstraint
 
 PATH_TO_DC_MINER_JAR = "resources/DCFinder_ADC-1.0-SNAPSHOT.jar"  # path is relative to this pacakge
 
 
 def mine_dcs(x_mine_source_df: pd.DataFrame,
              raw_dcs_out_path: str,
-             processed_dcs_out_path: str,
-             approx_violation_threshold: float = 0.01):
-    # TODO `x_mine_source_df` should come randomly shuffled
+             evaluated_dcs_out_path: str,
+
+             # DCs configuration
+             approx_violation_threshold: float = 0.01,
+             n_tuples_to_eval: int = 750,  # limit the recorded best-other-tuples to 0.75K
+             n_dcs_to_eval: int = 10_000,  # limit the number of evaluated DCs to 10K
+             ):
     print(">> Running DC Mining Algorithm")
-    run_fast_adc(x_mine_source_df, approx_violation_threshold, raw_dcs_out_path)
+    run_fast_adc(mine_source_df=x_mine_source_df,
+                 path_to_save_raw_dcs=raw_dcs_out_path,
+                 approx_violation_threshold=approx_violation_threshold)
 
     print(">> Evaluating and Ranking DCs")
-    dcs: List[DenialConstraint] = load_dcs(raw_dcs_out_path)
-    # Evaluate DCs metrics
-    evaluate_dcs(
+    dcs: List[DenialConstraint] = load_dcs_from_txt(raw_dcs_out_path)
+    # Evaluate DCs metrics and Rank DCs by these metrics (via manually-crafted linear combination)
+    evaluated_dcs = eval_and_rank_dcs(
         x_tuples_df=x_mine_source_df,
-        eval_csv_out_path=processed_dcs_out_path,
         dcs=dcs,
-        n_tuples_to_eval=750,  # limit the recorded best-other-tuples to 0.75K
-        n_dcs_to_eval=10000,  # limit the number of evaluated DCs to 10K
+        n_tuples_to_eval=n_tuples_to_eval,
+        n_dcs_to_eval=n_dcs_to_eval,
     )
-    # Rank DCs by these metrics (via manually-crafted linear combination)
-    rank_dcs(
-        eval_csv_out_path=processed_dcs_out_path,
-    )
+    evaluated_dcs.to_csv(evaluated_dcs_out_path, index=False)
 
 
+# TODO make this mining operational
+# TODO what was changed in DCs source code? is it configurable out-of-the-box?
 def run_fast_adc(mine_source_df: pd.DataFrame,
-                 raw_dcs_out_path: str,
+                 path_to_save_raw_dcs: str,
                  approx_violation_threshold: float = 0.01):
     # get the script's dir:
     curr_package_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -52,19 +56,27 @@ def run_fast_adc(mine_source_df: pd.DataFrame,
     print(">> Running DC Mining Algorithm")
     res = subprocess.run(["java", "-jar", path_to_jar, input_processed_data_csv_name, str(approx_violation_threshold)])
     print(res, res.stdout, res.stderr, sep="\n----")
-    # TODO make sure it was saved to raw_dcs_out_path
+    # TODO make sure it was saved to `path_to_save_raw_dcs`
 
 
-def evaluate_dcs(x_tuples_df: pd.DataFrame,
-                 eval_csv_out_path: str,
-                 dcs: List[DenialConstraint],
-                 n_dcs_to_eval: int = 10_000,
-                 n_tuples_to_eval: int = 750):
+def load_dcs_from_txt(dcs_txt_path: str) -> List[DenialConstraint]:
+    dcs = []
+    # Loads constraints from txt
+    with open(dcs_txt_path, "r") as f:
+        for dc_file_idx, dc_string in enumerate(f):
+            dcs.append(DenialConstraint(dc_string=dc_string,
+                                        dc_file_idx=dc_file_idx))
+    return dcs
+
+
+def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
+                      dcs: List[DenialConstraint],
+                      n_dcs_to_eval: int = 10_000,
+                      n_tuples_to_eval: int = 750):
     """
     :param x_tuples_df: DataFrame with data tuples to evaluate on. These tuples will play the role of main tuple
                         (in the pair).
                         Should be trimmed BEFORE this function.
-    :param eval_csv_out_path: path to save the CSV with the full evaluation.
     :param dcs: list with DC objects to evaluate.
                 We assume that all DCs have the same size of `dc.data_tuple` (denoted `n_other_data_tuples`)
     :param n_dcs_to_eval: amount of DC to evaluate (evaluate the `n_dcs` most succinctness DCs)
@@ -136,7 +148,7 @@ def evaluate_dcs(x_tuples_df: pd.DataFrame,
     coverage_per_dc = (sat_pred_count_per_dc * w).sum(axis=-1) / sat_pred_count_per_dc.sum(axis=-1)
 
     print(f">> Mean DC violation rate (lower->better, rate is over all pairs): "
-        f"{pairs_violation_rate_per_dc.mean() * 100}%")
+          f"{pairs_violation_rate_per_dc.mean() * 100}%")
     print(f">> Mean DC violation rate (lower->better, rate over tuples, for each tuples there exist a pair violating): "
           f"{tuple_violation_rate_per_dc.mean() * 100}%")
     print(f">> Mean Succinctness (higher->better, correlates to predicate size, higher the closer "
@@ -149,33 +161,19 @@ def evaluate_dcs(x_tuples_df: pd.DataFrame,
           f"{dcs[pairs_violation_rate_per_dc.argmax()]}")
 
     # Save metrics:
-    if eval_csv_out_path:
-        pd.DataFrame({
-            'dcs_file_idx': [dc.dc_file_idx for dc in dcs],
-            'dcs_repr': [str(dc) for dc in dcs],
-            'pairs_violation_rate_per_dc': pairs_violation_rate_per_dc,
-            'tuple_violation_rate_per_dc': tuple_violation_rate_per_dc,
-            'succinctness_per_dc': succinctness_per_dc,
-            'coverage_per_dc': coverage_per_dc,
-            'best_other_tuples': [json.dumps(lst) for lst in best_other_tuples_per_dc.tolist()],
-            # list of the tuples with highest sat-rate in their role as 'other tuple' in the DC.
-        }).to_csv(eval_csv_out_path)
+    dc_constraints_eval = pd.DataFrame({
+        'dcs_file_idx': [dc.dc_file_idx for dc in dcs],
+        'dcs_repr': [str(dc) for dc in dcs],
+        'pairs_violation_rate_per_dc': pairs_violation_rate_per_dc,
+        'tuple_violation_rate_per_dc': tuple_violation_rate_per_dc,
+        'succinctness_per_dc': succinctness_per_dc,
+        'coverage_per_dc': coverage_per_dc,
+        'best_other_tuples': [json.dumps(lst) for lst in best_other_tuples_per_dc.tolist()],
+        # list of the tuples with highest sat-rate in their role as 'other tuple' in the DC.
+    })
 
-
-def rank_dcs(
-        eval_csv_out_path: str,
-):
-    """
-    
-    filter DCs by their 'interesting-ness' ranking
-    form a weighted-score of the metrics
-    Adds score column, and set the order accordingly.
-      
-    """""
-
-    dc_constraints_eval = pd.read_csv(eval_csv_out_path,
-                                      converters={'best_other_tuples': literal_eval})
-
+    # filter DCs by their 'interesting-ness' ranking form a weighted-score of the metrics
+    # adds score column, and set the order accordingly.
     # calculate additional factors
     dc_constraints_eval['tuple_violation_rate_per_dc__below_1_pct'] = dc_constraints_eval[
                                                                           'tuple_violation_rate_per_dc'] <= 0.015
@@ -197,4 +195,10 @@ def rank_dcs(
         dc_constraints_eval['weighted_score'] += weight * dc_constraints_eval[col_name]
 
     # Re-Save 'dc_constraints_eval'
-    dc_constraints_eval.to_csv(eval_csv_out_path, index=False)
+    return dc_constraints_eval
+
+
+def load_evaluated_dcs(eval_csv_out_path: str):
+    dc_constraints_eval = pd.read_csv(eval_csv_out_path, converters={'best_other_tuples': literal_eval})
+
+    return dc_constraints_eval
