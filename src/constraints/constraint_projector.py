@@ -4,7 +4,11 @@ from src.constraints.utilizing.constrainer import Constrainer
 
 
 class ConstraintProjector:
-    """Class for generically projecting samples onto a given constraint set, making them feasible."""
+    """
+    Class for generically projecting samples onto a given constraint set, thus making them 'feasible'.
+        - The projection can be done relative to any constrainer (which implements the Constrainer API).
+        - The projection is done by a binary search, which minimizes the amount of freed literals.
+    """
 
     def __init__(self,
                  constrainer: Constrainer,
@@ -16,41 +20,6 @@ class ConstraintProjector:
         """
         self.constrainer: Constrainer = constrainer
         self.upper_projection_budget_bound = upper_projection_budget_bound
-
-    def _single_project(self, sample: np.ndarray,
-                        sample_original: np.ndarray,
-                        n_free_literals: int) -> (bool, np.ndarray):
-        """
-        Projects a single sample onto the constraints, by freeing `n_free_literals` literals.
-            - Defines the general projection scheme, utilizing the Constrainer API.
-            - Simple projection, that is employed in `self.project` as part of a bigger binary-search projection scheme.
-        """
-        sample = sample.copy()
-
-        before_projection_sat = self.constrainer.check_sat(sample, sample_original=sample_original)
-        if before_projection_sat or n_free_literals == 0:
-            # in case sample obeys the constraints / no projection desired, simply return it
-            return before_projection_sat, sample
-
-        # otherwise - project by sat solver:
-        # 1. Find the literals to free
-        literals_scores = self.constrainer.get_literals_scores(sample)
-        literals_to_free = literals_scores.argsort()[:n_free_literals]  # default literals to free
-        if len(np.unique(literals_scores)) == 1:
-            # Sample from the top `n_free_literals` literals to free, in case of tie
-            literals_to_free = np.random.choice(len(literals_scores), size=n_free_literals, replace=False)
-        else:
-            # TODO make sure the following line is printed occasionally (otherwise, inspect the score system)
-            print("sometimes the literals cost differ!", literals_scores)
-
-        # TODO [currently disabled] consider a softmax option (with `p=softmax(-literals_scores))`)
-        # temp_factor = 1  # the lower - the more uniform (0 -> uniform)
-        # softmax = lambda x: np.exp(temp_factor * x) / np.sum(np.exp(temp_factor * x))
-        # 2. Attempt to project the sample
-        is_projection_succ, projected_sample = self.constrainer.project_sample(sample, literals_to_free,
-                                                                               sample_original=sample_original)
-
-        return is_projection_succ, projected_sample
 
     def project(self, sample: np.ndarray, sample_original: np.ndarray) -> (bool, np.ndarray):
         """
@@ -96,3 +65,39 @@ class ConstraintProjector:
         print(f"Projection was {'successful' if is_sat else 'failed'} with budget={n_phi}")
 
         return is_sat, projected_sample
+
+    def _single_project(self, sample: np.ndarray,
+                        sample_original: np.ndarray,
+                        n_free_literals: int) -> (bool, np.ndarray):
+        """
+        Projects a single sample onto the constraints, by freeing `n_free_literals` literals.
+            - Defines the general projection scheme, utilizing the Constrainer API.
+            - Simple projection, that is employed in `self.project` as part of a bigger binary-search projection scheme.
+        """
+        sample = sample.copy()
+
+        before_projection_sat = self.constrainer.check_sat(sample, sample_original=sample_original)
+        if before_projection_sat or n_free_literals == 0:
+            # in case sample obeys the constraints / no projection desired, simply return it
+            return before_projection_sat, sample
+
+        # otherwise - project by sat solver:
+        # 1. Find the literals to free
+        literals_scores = self.constrainer.get_literals_scores(sample)
+        literals_to_free = literals_scores.argsort()[:n_free_literals]  # default literals to free
+        if len(np.unique(literals_scores)) == 1:
+            # Sample from the top `n_free_literals` literals to free, in case of tie
+            literals_to_free = np.random.choice(len(literals_scores), size=n_free_literals, replace=False)
+        else:
+            # TODO make sure the following line is printed occasionally (otherwise, inspect the score system)
+            print("sometimes the literals cost differ!", literals_scores)
+
+        # TODO [currently disabled] consider a softmax option (with `p=softmax(-literals_scores))`)
+        # temp_factor = 1  # the lower - the more uniform (0 -> uniform)
+        # softmax = lambda x: np.exp(temp_factor * x) / np.sum(np.exp(temp_factor * x))
+
+        # 2. Attempt to project the sample
+        is_projection_succ, projected_sample = self.constrainer.project_sample(sample, literals_to_free,
+                                                                               sample_original=sample_original)
+
+        return is_projection_succ, projected_sample

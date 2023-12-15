@@ -101,8 +101,10 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
 
     x_tuples_df = x_tuples_df[:n_tuples_to_eval].copy()
 
+    # Set the 'other-tuples' data for each DC
     for dc in dcs:
         dc.set_other_tuples_data(x_tuples_df)
+
     print(f"Evaluating {len(dcs)=}, `t` from {len(x_tuples_df)=} and `t'` from {len(x_tuples_df)=}")
 
     # Metric I (g_1): for each DC we calculate the violation rate (over all the possible pairs)
@@ -123,7 +125,7 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     for dc_idx, dc in tqdm(enumerate(dcs), desc="Evaluating DCs..."):
         dc_sat_per_other_tuples = np.zeros(n_tuples_to_eval, dtype=int)
         for idx1 in range(len(x_tuples_df)):  # iterate on t (main tuple)
-            is_sat_arr, sat_predicates_count_arr = dc.check_all_pair_satisfaction(x_tuples_df.iloc[idx1].to_dict())
+            is_sat_arr, sat_predicates_count_arr = dc.check_satisfaction_all_pairs(x_tuples_df.iloc[idx1].to_dict())
 
             # Track the sat of tuples playing the "other-tuple" role
             dc_sat_per_other_tuples += is_sat_arr.values
@@ -163,7 +165,7 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     # Save metrics:
     dc_constraints_eval = pd.DataFrame({
         'dcs_file_idx': [dc.dc_file_idx for dc in dcs],
-        'dcs_repr': [str(dc) for dc in dcs],
+        'dcs_repr': [str(dc) for dc in dcs],  # from which the DC can be reproduced
         'pairs_violation_rate_per_dc': pairs_violation_rate_per_dc,
         'tuple_violation_rate_per_dc': tuple_violation_rate_per_dc,
         'succinctness_per_dc': succinctness_per_dc,

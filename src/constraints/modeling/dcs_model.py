@@ -5,6 +5,10 @@ from z3 import *
 from functools import lru_cache
 from typing import Dict, List, Tuple, Union
 
+"""
+Define the constraint model of the utilized constraints, Denial Constraints.
+"""
+
 
 class DenialConstraint:
     def __init__(self,
@@ -93,6 +97,9 @@ class DenialConstraint:
     def set_other_tuples_data(self, other_tuples_data: pd.DataFrame):
         self.other_tuples_data = other_tuples_data
 
+    def __repr__(self):
+        return self.dc_string
+
     @lru_cache(maxsize=None)
     def does_given_feature_sat_dc(self, feature_name: str, feature_val, **kwargs) -> np.array:
         """
@@ -146,3 +153,6 @@ class DCPredicate:
 
     def get_z3_formula(self, row1_literals: Dict[str, ExprRef], row2_values: pd.Series):
         return self.check_pair_satisfaction((row1_literals, row2_values))
+
+    def __repr__(self):
+        return f"t{self.col1_var}.{self.col1_name} {self.operator} t{self.col2_var}.{self.col2_name}"

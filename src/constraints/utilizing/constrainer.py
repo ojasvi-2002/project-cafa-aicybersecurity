@@ -12,27 +12,33 @@ from src.constraints.modeling.dcs_model import DenialConstraint
 
 
 class Constrainer(ABC):
+    """Abstract class for utilizing constraint set."""
     @abstractmethod
     def check_sat(self,
                   sample: np.ndarray,
                   **kwargs) -> bool:
+        """Checks whether the sample satisfies the constraints."""
         pass
 
     @abstractmethod
     def project_sample(self,
                        sample: np.ndarray,
-                       freed_literals: list,
+                       freed_literals: list[int],
                        **kwargs) -> Tuple[bool, np.ndarray]:
+        """Projects the sample onto the constraints, by freeing the given literals (by indices)."""
         pass
 
     @abstractmethod
     def get_literals_scores(self,
                             sample: np.ndarray):
-        # the higher the score the more constrained the literal
+        """The higher the score the more constrained the literal. """
         pass
 
 
 class DCsConstrainer(Constrainer):
+    """
+    Class for utilizing Denial Constraints (DCs) (e.g., satisfiability check, projection onto DCs, etc.).
+    """
     def __init__(
             self,
             x_tuples_df: pd.DataFrame,  # must be the same as mining
@@ -55,16 +61,15 @@ class DCsConstrainer(Constrainer):
             limit_cost_ball: bool = True,
             cost_ball_eps: float = 1 / 30,
     ):
+        # Attack parameters:
         self.limit_cost_ball = limit_cost_ball
+        self.cost_ball_eps = cost_ball_eps
 
         # we define the top scores as the DCs and set them
         self.dc_constraints_eval = load_evaluated_dcs(eval_csv_out_path)
         self.x_tuples_df, self.n_dcs, self.n_tuples = x_tuples_df, n_dcs, n_tuples
         self.dcs = None
         self._get_dcs()
-
-        # Attack parameters:
-        self.cost_ball_eps = cost_ball_eps
 
         # Data properties:
         self.feature_names = feature_names
@@ -103,10 +108,10 @@ class DCsConstrainer(Constrainer):
                   sample: np.array,
                   sample_original: np.array = None) -> bool:
         """
-        :param sample: dict that maps `feature_name` (str) to its value (int/float), or no value
-        :param additional_assumptions: list of z3 formulas to add to the solver
-        :return: True IFF the sample satisfies the constraints of s
-       """
+        :param sample: dict that maps `feature_name` (str) to its value (int/float), or no value.
+        :param sample_original: original sample (usually 'sample' is perturbed one); used to limit the cost-ball.
+        :return: whether the sample satisfies the constraints.
+        """
         is_sat = self._check_sat_with_given_literals(sample, sample_original=sample_original, check_sat_only=True)
         return is_sat
 
@@ -115,7 +120,10 @@ class DCsConstrainer(Constrainer):
                                        sample_original: np.array = None,
                                        check_sat_only: bool = None):
         """
-            - If `self.limit_cost_ball` and `original_sample` is given, then the projection also enforces the cost-ball.
+        :param sample: array of the sample's values, where `nan` means a literal to free.
+        :param sample_original: If `self.limit_cost_ball` and `original_sample` is given, then the
+                                projection also enforces the cost-ball.
+        :param check_sat_only: whether to return only the satisfiability (without the satisfying model)
         """
 
         # Build the assignment to check
