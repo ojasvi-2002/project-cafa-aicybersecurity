@@ -1,6 +1,5 @@
 # inspiration #1: LLm attacks: https://github.com/llm-attacks/llm-attacks/tree/main/llm_attacks
-# inspiration #2: ART
-
+# inspiration #2: ART models
 
 # stage 1: wrap classifier with ART
 """
@@ -85,7 +84,7 @@ attack = CaFA(
     step_size=1 / 3000,
     random_init=True,
 
-    summary_writer=False
+    summary_writer=False  # TODO implement
 )
 
 X_adv = attack.generate(x=X, y=y)
@@ -169,3 +168,5 @@ eval_adv_samples = evaluate_crafted_samples(X_adv=X_adv, X_orig=X, y=y, **eval_p
 print("after cafa:", eval_adv_samples)
 eval_adv_proj_samples = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
 print("after projection:", eval_adv_proj_samples)
+
+# TODO [IN NOTEBOOK] print simple plot of the overall evaluation

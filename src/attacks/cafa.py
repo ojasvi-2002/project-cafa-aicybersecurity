@@ -18,20 +18,21 @@ class CaFA(EvasionAttack):
     """
 
     attack_params = EvasionAttack.attack_params + [
-        "standard_factors",
-        "cat_indices",
-        "ordinal_indices",
-        "cont_indices",
-        "feature_ranges",
-        "cat_encoding_method",
-        "one_hot_groups",
-        "random_init",
-        "eps",
-        "step_size",
-        "max_iter",
-        "perturb_categorical_each_steps",
-        "summary_writer",
-        # TODO keep in sync
+        'cat_indices',
+        'ordinal_indices',
+        'cont_indices',
+        'feature_ranges',
+        'standard_factors',
+        'cat_encoding_method',
+        'one_hot_groups',
+        'random_init',
+        'random_seed',
+        'max_iter',
+        'max_iter_tabpgd',
+        'eps',
+        'step_size',
+        'perturb_categorical_each_steps',
+        'summary_writer',
     ]
     # Requiring implementation of 'loss_gradient()' (i.e., white-box access), via `LossGradientsMixin`.
     _estimator_requirements = (BaseEstimator, LossGradientsMixin, ClassifierMixin)
@@ -44,40 +45,66 @@ class CaFA(EvasionAttack):
             cat_indices: np.ndarray,
             ordinal_indices: np.ndarray,
             cont_indices: np.ndarray,
-            feature_ranges: np.ndarray,  # shape (n_features, 2) with min/max values for each feature
+            feature_ranges: np.ndarray,
             standard_factors: np.ndarray = None,
 
             cat_encoding_method: str = 'one_hot_encoding',
             one_hot_groups: List[np.ndarray] = None,
 
             # TabPGD HPs:
-            random_init: bool = True,  # TODO add seed to reprod
-            # batch_size: int = None,  # TODO add support for batching
+            random_init: bool = True,
+            random_seed: int = None,
+            max_iter: int = 500,
+            max_iter_tabpgd: int = 100,
+            # batch_size: int = None,  # TODO [ADD-FEATURE] support for batching
+            # targeted: bool = False, # TODO [ADD-FEATURE] support for targeted attack
             eps: float = 0.03,
             step_size: float = 0.0003,
-            max_iter: int = 500,  # main of TabCW loop
-            max_iter_tabpgd: int = 100,  # TabPGD's loop
             perturb_categorical_each_steps: int = 10,
 
-            # Misc:  # TODO integrate summary_writer in the code
+            # Misc:  # TODO [ADD-FEATURE] integrate summary_writer in the code
             summary_writer: Union[str, bool, SummaryWriter] = False,
     ):
         """
-        Create a `TabPGD` attack instance.
 
-        :param estimator: A trained classifier.
-        :param summary_writer: Activate summary writer for TensorBoard.
-        # TODO document all parameters
+        :param estimator: Targeted NN model; should implement `loss_gradient()` (see ART's estimators). This
+                          instantiates a white-box-accessed target model.
 
+        ## Data properties:
+        :param cat_indices: Indices of categorical features.
+        :param ordinal_indices: Indices of ordinal features.
+        :param cont_indices: Indices of continuous features.
+        :param feature_ranges: The semantic range for each feature (e.g., feature that represents a rate should
+                               have [0,1] range). Of shape (n_features, 2) with lower,upper for each feature.
+        :param standard_factors: The standardization factor for each feature, used in the attack step size and cost. Of
+                                 shape (n_features,) with the standardization factor for each feature.
+        :param cat_encoding_method: The method used to encode categorical features. Currently only 'one_hot_encoding'
+        :param one_hot_groups: A list of np.ndarray-s, where each array holds the indices of the one-hot-encoded
+
+        ## Attack Hyperparameters: (see paper for more detailed description)
+        :param random_init: Whether to start the attack from a random point inside the epsilon-ball.
+        :param random_seed: Random seed to use for the attack. Defaults to no seed (i.e., random).
+        :param max_iter: The maximum iterations to perform in the main loop (of TabCWL0), each runs TabPGD. Setting
+                         the argument to `1` means running TabPGD alone.
+        :param max_iter_tabpgd: The maximum iterations to perform in the TabPGD loop.
+        :param eps: Proportion of the allowed l-inf-standardized ball to generate adversarial samples within.
+        :param step_size: The step size taken in each TabPGD iteration.
+        :param perturb_categorical_each_steps: The number of iterations to perform between perturbing categorical
+                                               features.
+
+        ## Misc:
+        :param summary_writer:  # TODO [ADD-FEATURE] integrate summary_writer in the code
         """
         super().__init__(estimator=estimator,
                          summary_writer=summary_writer)
-        self.random_init = random_init
+
         self.eps = eps
         self.step_size = step_size
         self.max_iter = max_iter
         self.max_iter_tabpgd = max_iter_tabpgd
         self.perturb_categorical_each_steps = perturb_categorical_each_steps
+        self.random_init = random_init
+        self.random_seed = random_seed
 
         self.feature_ranges = feature_ranges
         self.standard_factors = standard_factors
@@ -88,8 +115,11 @@ class CaFA(EvasionAttack):
         self.cat_encoding_method = cat_encoding_method
         self.one_hot_groups = one_hot_groups
 
-        # validations:
+        # Validations:
         self._validate_input()
+
+        # Fix a random seed (if required)
+        np.random.seed(self.random_seed)
 
     def generate(self,
                  x: np.ndarray,
@@ -98,6 +128,9 @@ class CaFA(EvasionAttack):
                  ):
         """
         Generate adversarial samples with TabCW+TabPGD and return them in an array.
+            - The adversarial samples enforce the structure-constraints.
+            - The adversarial samples are crafted within an epsilon l-inf ball.
+            - The algorithm minimizes the l0 of the adversarial perturbation.
         """
         if y is None:  # Use model predictions as correct outputs, if not provided
             y = self.estimator.predict(x).argmax(axis=1)
@@ -110,6 +143,7 @@ class CaFA(EvasionAttack):
         prev_attack_l0_vals = np.full(x.shape[0], np.inf, dtype=np.float32)
         i = 0
 
+        # TODO [ENHANCE-PERFORMANCE] can add more stopping conditions (e.g., by time or success).
         while i < self.max_iter and mask.sum() > 0:
             if i > 0:
                 # Prevent perturbation of 'least useful' feature
@@ -139,8 +173,6 @@ class CaFA(EvasionAttack):
             # prev_is_attack_success = is_attack_success
             prev_attack_l0_vals = attack_l0_vals
 
-            # TODO early-stop when ~10 iteration without update (?)
-
         return x_adv
 
     def generate_with_tabpgd(self,
@@ -149,7 +181,8 @@ class CaFA(EvasionAttack):
                              mask: np.ndarray = None,
                              **kwargs) -> np.ndarray:
         """
-        Generate adversarial samples and return them in an array.
+        Utilize TabPGD to Generate adversarial samples enforcing the structural and standardized-l-inf
+        constraints and return them in an array.
 
         :param x: An array with the original inputs.
         :param y: An array with the original labels to be predicted.
@@ -157,6 +190,7 @@ class CaFA(EvasionAttack):
                      Note that a mask should apply to One-Hot groups altogether.
         :return: An array holding the adversarial examples.
         """
+
         # Use model predictions as correct outputs, if not provided
         if y is None:
             y = self.estimator.predict(x).argmax(axis=1)
@@ -187,8 +221,7 @@ class CaFA(EvasionAttack):
                 # continuous and ordinal perturbations are derived from the usual ones
             else:
                 # Get gradient wrt loss; invert it if attack is targeted
-                # TODO: should the mask be applied before calculating the loss or something?
-                grad = self.estimator.loss_gradient(x, y)  # * (1 - 2 * int(self.targeted)) TODO targeted
+                grad = self.estimator.loss_gradient(x, y)  # * (1 - 2 * int(self.targeted)) TODO [ADD-FEATURE] targeted attack
                 grad *= mask
                 # Update accumulated gradients
                 accum_grads += grad
@@ -223,11 +256,25 @@ class CaFA(EvasionAttack):
             logger.info(f"ASR: {is_attack_success.mean() * 100: .2f}%")
             allow_updates -= allow_updates * is_attack_success
 
-            # 9. Track attack metrics # TODO
+            # 9. Track attack metrics # TODO [ADD-FEATURE] implement a step-wise tracker (e.g., summary writer)
+            # if self.summary_writer is not None:  # pragma: no cover
+            #     self.summary_writer.update(
+            #         batch_id=0,
+            #         global_step=step,
+            #         grad=perturbation_temp,
+            #         patch=None,
+            #         estimator=self.estimator,
+            #         x=x_adv,
+            #         y=y,
+            #         targeted=self.targeted,
+            #     )
 
             # 10. Early stop if all samples are already adversarial
             if allow_updates.sum() == 0:
                 break
+
+        # if self.summary_writer is not None:
+        #     self.summary_writer.reset()
 
         return x_adv
 
@@ -237,18 +284,27 @@ class CaFA(EvasionAttack):
                                      y: np.ndarray,
                                      mask: np.ndarray,
                                      ) -> List[List[int]]:
-        # TODO insert randomness? specifically, for samples failed in previous iterations?
+        """
+        As part of TabCWL0 algorithm, applies a heuristic to identify tne least important features to each sample.
+        :param x: The original samples
+        :param x_adv: The perturbed samples.
+        :param y: The original labels
+        :param mask: The mask of features to consider.
+        :return: A list of lists, where each inner list holds the indices of the least important features for a sample.
+        """
+        # TODO [ALGORITHM-ENHANCEMENT] insert randomness? specifically, for samples failed in previous iterations?
         delta = x_adv - x
         grad = self.estimator.loss_gradient(x_adv, y)
         cw_score = np.abs(grad * delta)
 
         # TODO if one-hot encoding
-        # Aggregate score for One-Hot-Encoded feature over all categories
-        for oh_group in self.one_hot_groups:
-            for sample_idx in range(cw_score.shape[0]):
-                cw_score[sample_idx, oh_group] = np.abs(cw_score[sample_idx, oh_group]).sum()
+        if self.cat_encoding_method == 'one_hot_encoding':
+            # Aggregate score for One-Hot-Encoded feature over all categories
+            for oh_group in self.one_hot_groups:
+                for sample_idx in range(cw_score.shape[0]):
+                    cw_score[sample_idx, oh_group] = np.abs(cw_score[sample_idx, oh_group]).sum()
 
-        # TODO TABNET
+        # TODO [ADD-FEATURE] Implement TabNet support
         """ 
         # TABNET OPTION 
         if self.model_type == 'tabnet':
@@ -310,7 +366,7 @@ class CaFA(EvasionAttack):
                                       perturb_one_feature_only: bool = False) -> np.ndarray:
         perturb_cat = np.zeros_like(x_adv)
 
-        if self.cat_encoding_method == 'one_hot_encoding':  # TODO generalize to TabNet
+        if self.cat_encoding_method == 'one_hot_encoding':
 
             # get the max value of each OH group
             score_grads_per_group = np.zeros((x_adv.shape[0], len(self.one_hot_groups)))
@@ -332,7 +388,8 @@ class CaFA(EvasionAttack):
                 perturb_cat[samples_to_update_indices, oh_group] = -x_adv[samples_to_update_indices, oh_group]
                 perturb_cat[samples_to_update_indices, chosen_cats] += 1
         else:
-            raise NotImplementedError  # TODO
+            # TODO [ADD-FEATURE] Implement TabNet support
+            raise NotImplementedError
         return perturb_cat
 
     def _get_random_categorical_perturbation(self, x_adv: np.ndarray) -> np.ndarray:

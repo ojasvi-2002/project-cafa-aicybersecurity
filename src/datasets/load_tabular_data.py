@@ -73,9 +73,6 @@ class TabularDataset:
                                                             random_state=random_seed,
                                                             shuffle=True)
 
-        # Validate the processed input data
-        self._validate_input()
-
         # Save numpy arrays
         self.X_train, self.X_test, self.y_train, self.y_test = (
             X_train.values.astype(np.float32), X_test.values.astype(np.float32),
@@ -85,6 +82,9 @@ class TabularDataset:
         self.feature_names = self.metadata_df_features.feature_name.values
         self.label_name = self.metadata_df[self.metadata_df.type == 'label'].feature_name.item()
         self.cat_encoding_method = encoding_method
+
+        # Validate the processed input data
+        self._validate_input()
 
     @property
     def trainset(self):
