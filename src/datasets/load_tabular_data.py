@@ -16,7 +16,17 @@ dataset_name_to_preprocess_func = {
 }
 
 
+# TODO should reconsider properties that are not used / can be merged
 class TabularDataset:
+    """
+    Class for processing tabular datasets, as well as holding these and exposing relevant properties for
+    evaluations and attacks.
+
+    Additionally, the class allows reproducibility of the dataset processing. This is essential for -
+        * Attacking the test-set, after saving the train-test split.
+        * Aligning the training-set and mining-set, to use this samples as part of constraint inference (in the attack).
+        * Reproducing experiments.
+    """
     def __init__(
             self,
             dataset_name: str,
@@ -26,6 +36,19 @@ class TabularDataset:
             random_seed: int = 42,
             train_proportion: float = 0.87,
     ):
+        """
+        A reproducing constructor for the TabularDataset class.
+        :param dataset_name: name of the dataset (`adult`, `bank`, `phishing`, or newly added ones).
+        :param data_file_path: path for the file containing the raw data.
+        :param metadata_file_path: path for a CSV file containing the metadata of the dataset. The CSV must contain
+                                   the columns `feature_name`, `type`, `range`, refer to the existing files.
+        :param encoding_method: encoding method for categorical features. `None` means simple label-encoding;
+                                defaults to 'one_hot_encoding'.
+        :param random_seed: Seed to be used for the train-test shuffle and split.
+        :param train_proportion: Proportion to be used for the train-test split.
+        """
+
+        # Saves the parameters the uniquely define this tabular-dataset instance, for reproducibility
         self.dataparameters = {
             'dataset_name': dataset_name,
             'data_file_path': data_file_path,
@@ -34,7 +57,10 @@ class TabularDataset:
             'random_seed': random_seed,
             'train_proportion': train_proportion,
         }
-        # preprocess # TODO generalize
+
+        # Preprocess data
+        assert dataset_name in dataset_name_to_preprocess_func, \
+            f"Unknown dataset name: {dataset_name}. Available datasets: {dataset_name_to_preprocess_func.keys()}"
         self.x_df, self.y_df, self.metadata_df = dataset_name_to_preprocess_func[dataset_name](
             data_file_path=data_file_path,
             metadata_file_path=metadata_file_path,
@@ -55,16 +81,13 @@ class TabularDataset:
             X_train.values.astype(np.float32), X_test.values.astype(np.float32),
             y_train.values.astype(np.float32), y_test.values.astype(np.float32))
 
-        # Create features metadata object, to be used in the attack
-        self.feature_names = self.metadata_df[self.metadata_df.type != 'label'].feature_name.values
+        self.metadata_df_features = self.metadata_df[self.metadata_df.type != 'label'].copy()
+        self.feature_names = self.metadata_df_features.feature_name.values
         self.label_name = self.metadata_df[self.metadata_df.type == 'label'].feature_name.item()
         self.cat_encoding_method = encoding_method
 
     @property
     def trainset(self):
-        """
-        :return:
-        """
         trainset = torch.utils.data.TensorDataset(
             torch.tensor(self.X_train, dtype=torch.float32),
             torch.tensor(self.y_train, dtype=torch.long)
@@ -87,22 +110,10 @@ class TabularDataset:
     def n_features(self):
         return int(len(self.metadata_df) - 1)  # -1 for the label
 
-    # Currently disabled
-    # @property
-    # def summary(self):
-    #     return {
-    #         'n_features': self.n_features,
-    #         'n_classes': self.n_classes,
-    #         # 'feature_names': self.feature_names, # TODO
-    #         # 'label_name': self.label_name,  # TODO
-    #         'train_test_split_ratio': '0.87',
-    #         'train_test_split_random_seed': '42',
-    #     }
-
     @property
     def feature_ranges(self):
         ranges = []
-        for range in self.metadata_df[self.metadata_df.type != 'label'].range:
+        for range in self.metadata_df_features.range:
             range = ast.literal_eval(range)
             if range[0] == '-inf':
                 range[0] = -np.inf
@@ -155,19 +166,19 @@ class TabularDataset:
 
     @property
     def is_feature_ordinal(self):
-        return (self.metadata_df[self.metadata_df.type != 'label'].type == 'ordinal').tolist()
+        return (self.metadata_df_features.type == 'ordinal').tolist()
 
     @property
     def is_feature_continuous(self):
-        return (self.metadata_df[self.metadata_df.type != 'label'].type == 'continuous').tolist()
+        return (self.metadata_df_features.type == 'continuous').tolist()
 
     @property
     def is_feature_categorical(self):
-        return (self.metadata_df[self.metadata_df.type != 'label'].type == 'categorical').tolist()
+        return (self.metadata_df_features.type == 'categorical').tolist()
 
     @property
     def feature_types(self) -> List[Type]:
-        return self.metadata_df[self.metadata_df.type != 'label'].type.apply(
+        return self.metadata_df_features.type.apply(
             lambda type: {'categorical': str, 'ordinal': int, 'continuous': float}[type]
         ).values.tolist()
 
@@ -176,12 +187,12 @@ class TabularDataset:
         """
         :return: a list of feature names, in the format used in the DCs mining algorithm (FastADC)
         """
-        return self.metadata_df[self.metadata_df.type != 'label'].apply(
+        return self.metadata_df_features.apply(
             lambda row: f"{row.feature_name}({row['dc-mining-type'].title()})", axis=1
         ).values.tolist()
 
     def _validate_input(self):
-        f_names_from_metadata = self.metadata_df[self.metadata_df.type != 'label'].feature_name.values.tolist()
+        f_names_from_metadata = self.metadata_df_features.feature_name.values.tolist()
         f_names_from_data = [col.split('===')[0] for col in self.x_df.columns.tolist()]
         assert f_names_from_metadata == f_names_from_data, \
             "Order and names of features in metadata and data should be the same"
@@ -194,7 +205,9 @@ class TabularDataset:
             "Feature ranges should be at least as wide as the data"
 
     @staticmethod
-    def cast_sample_format(sample: np.ndarray, from_dataset, to_dataset) -> np.ndarray:
+    def cast_sample_format(sample: np.ndarray,
+                           from_dataset: 'TabularDataset',
+                           to_dataset: 'TabularDataset') -> np.ndarray:
         """
         Transform a sample from the original dataset to this dataset's format.
             * casting is done in terms of order features and re-encoding categorical features.
@@ -204,9 +217,19 @@ class TabularDataset:
         :param to_dataset: teh target dataset object, to which the sample should be cast
         :return: a sample in this dataset's format
         """
-        # TODO assert origin this dataset is castable to this (same data, same feature names, same label name)
-        assert len(sample) == len(from_dataset.feature_names), "`from_dataset` should be the object where sample from"
 
+        # Casting validations:
+        assert from_dataset.dataparameters['dataset_name'] == to_dataset.dataparameters['dataset_name'], \
+            "`from_dataset` and `to_dataset` should be the same dataset"
+        assert len(sample) == len(from_dataset.feature_names), "`from_dataset` should be the object where sample from"
+        assert set(to_dataset.feature_names) == set(from_dataset.feature_names), \
+            "Both datasets should have the same features"
+        if (from_dataset.dataparameters['random_seed'] != to_dataset.dataparameters['random_seed'] or
+                from_dataset.dataparameters['train_proportion'] != to_dataset.dataparameters['train_proportion']):
+            print("[WARNING] Casting seem to be between datasets with different train-test splits. Not recommended "
+                  "for most applications (e.g., mining and attacking)")
+
+        # Casting:
         sample_new = np.zeros_like(to_dataset.feature_names)
         for f_idx, row in to_dataset.metadata_df[to_dataset.metadata_df.type != 'label'].iterrows():
             feature_name = row.feature_name
