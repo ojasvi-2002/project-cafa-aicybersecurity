@@ -152,7 +152,7 @@ def train(hyperparameters,
     trainer = pl.Trainer(
         max_epochs=30,
         callbacks=callbacks,
-        default_root_dir=f"logs/training/mlps/{data_parameters['dataset_name']}/",  # TODO configurable
+        default_root_dir=f"outputs/training/mlps/{data_parameters['dataset_name']}/",  # TODO configurable
 
         # Default configs:
         # accelerator="auto",

@@ -1,5 +1,5 @@
 constrainer_params:
-  evaluated_dcs_out_path: ${data.evaluated_dcs_out_path}
+  evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
   n_dcs: 5000
   n_tuples: 1
   limit_cost_ball: True
@@ -8,15 +8,19 @@ constrainer_params:
 projector_params:
   upper_projection_budget_bound: 0.5
 
-# Re-execute constraints mining and its violation parameter
-perform_constraints_mining: False
-
-# Re-execute raw constraints evaluation and its parameters
-perform_constraints_eval: False  # must be True if `perform_constraints_mining` is True
 
 mining_params:
-  raw_dcs_out_path: ${data.raw_dcs_out_path}
-  evaluated_dcs_out_path: ${data.evaluated_dcs_out_path}
+  # Re-execute constraints mining and its violation parameter
+  perform_constraints_mining: False
+
+  # Re-execute raw constraints evaluation and its parameters
+  perform_constraints_eval: False  # must be True if `perform_constraints_mining` is True
+
+  # Paths to load/save the mined constraints from/to.
+  raw_dcs_out_path: ${data.paths.raw_dcs_out_path}
+  evaluated_dcs_out_path: ${data.paths.evaluated_dcs_out_path}
+
+  # Mining hyperparameters
   approx_violation_threshold: 0.01
   n_tuples_to_eval: 750
   n_dcs_to_eval: 10000

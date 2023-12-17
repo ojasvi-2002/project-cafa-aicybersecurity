@@ -1,7 +1,7 @@
 model_type: 'mlp'
 
 # Path to load model from; in case opf training it's the path to save the model to.
-model_artifact_path: 'trained-models/${dataset_name}-${ml_model.model_type}.ckpt'
+model_artifact_path: 'trained-models/${data.name}-${ml_model.model_type}.ckpt'
 
 # Whether to re-train the model or not.
 perform_training: False

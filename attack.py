@@ -24,14 +24,14 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"Used config: {OmegaConf.to_yaml(cfg)}")
 
     # 1. Process data:
-    tab_dataset = TabularDataset(**cfg.data)
+    tab_dataset = TabularDataset(**cfg.data.params)
 
     # 2. Load model; optionally, re-train before:
     if cfg.ml_model.perform_training:
         best_hparams = cfg.model.default_hparams
         if cfg.ml_model.perform_grid_search:
-            best_hparams = grid_search_hyperparameters(cfg.data)
-        train(best_hparams, cfg.data, model_artifact_path=cfg.ml_model.model_artifact_path)
+            best_hparams = grid_search_hyperparameters(cfg.data.params)  # todo generalize
+        train(best_hparams, cfg.data.params, model_artifact_path=cfg.ml_model.model_artifact_path)  # todo generalize, better params management
     model = load_trained_model(cfg.ml_model.model_artifact_path, model_type=cfg.ml_model.model_type)
 
     # 3. Wrap the model to ART classifier, for executing the attack:
@@ -46,24 +46,23 @@ def main(cfg: DictConfig) -> None:
         input_shape=tab_dataset.n_features,
         nb_classes=tab_dataset.n_classes,
     )
-    eval_params = dict(
-        classifier=classifier,
-        tab_dataset=tab_dataset,
-    )
+    eval_params = dict(classifier=classifier, tab_dataset=tab_dataset)
 
     # 4. Load constraints; Optionally, mine them before:
     if cfg.constraints:
-        mining_source_params = cfg.data.copy()
+        mining_source_params = cfg.data.params.copy()
         mining_source_params['encoding_method'] = None  # we set default (label-) encoding for constraint mining
         tab_dcs_dataset = TabularDataset(**mining_source_params)
 
         # [Optionally] Mine the DCs:
-        # TODO
+        mine_dcs(
+            x_mine_source_df=tab_dcs_dataset.x_df,
+            **cfg.constraints.mining_params
+        )
 
         # Initialize the DCs constrainer:
         constrainer = DCsConstrainer(
             x_tuples_df=tab_dcs_dataset.x_df,
-            evaluated_dcs_out_path=cfg.constraints.evaluated_dcs_out_path,
             **tab_dcs_dataset.structure_constraints,
             **cfg.constraints.constrainer_params
         )
@@ -99,21 +98,21 @@ def main(cfg: DictConfig) -> None:
 
         for x_orig, x_adv in zip(X, X_adv):  # for validation
 
-            # 1. Transform sample to the format of the DCs dataset
+            # A. Transform sample to the format of the DCs dataset
             sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
             sample_adv = TabularDataset.cast_sample_format(x_adv, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
 
-            # 1.1. Sanity checks:
+            # A.1. Sanity checks:
             assert np.all(x_orig ==
                           TabularDataset.cast_sample_format(sample_orig, from_dataset=tab_dcs_dataset,
                                                             to_dataset=tab_dataset))
             assert np.all(sample_orig ==
                           TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset))
 
-            # 2. Project
+            # B. Project
             is_succ, sample_projected = projector.project(sample_adv, sample_original=sample_orig)
 
-            # 3. Transform back to the format of the model input
+            # C. Transform back to the format of the model input
             x_adv_proj = TabularDataset.cast_sample_format(sample_projected, from_dataset=tab_dcs_dataset,
                                                            to_dataset=tab_dataset)
             X_adv_proj.append(x_adv_proj)
@@ -123,7 +122,7 @@ def main(cfg: DictConfig) -> None:
         evaluations['after-cafa-projection'] = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
         logger.info(f"after-projection: {evaluations['after-cafa-projection']}")
 
-    # print `evaluations` dict with indentations
+    logger.info("Finished attack.")
     logger.info(evaluations)
 
 

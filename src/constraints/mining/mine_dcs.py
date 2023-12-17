@@ -21,22 +21,28 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
              approx_violation_threshold: float = 0.01,
              n_tuples_to_eval: int = 750,  # limit the recorded best-other-tuples to 0.75K
              n_dcs_to_eval: int = 10_000,  # limit the number of evaluated DCs to 10K
-             ):
-    print(">> Running DC Mining Algorithm")
-    run_fast_adc(mine_source_df=x_mine_source_df,
-                 path_to_save_raw_dcs=raw_dcs_out_path,
-                 approx_violation_threshold=approx_violation_threshold)
 
-    print(">> Evaluating and Ranking DCs")
-    dcs: List[DenialConstraint] = load_dcs_from_txt(raw_dcs_out_path)
-    # Evaluate DCs metrics and Rank DCs by these metrics (via manually-crafted linear combination)
-    evaluated_dcs = eval_and_rank_dcs(
-        x_tuples_df=x_mine_source_df,
-        dcs=dcs,
-        n_tuples_to_eval=n_tuples_to_eval,
-        n_dcs_to_eval=n_dcs_to_eval,
-    )
-    evaluated_dcs.to_csv(evaluated_dcs_out_path, index=False)
+             # Phases to execute:
+             perform_constraints_mining: bool = True,
+             perform_constraints_eval: bool = True,
+             ):
+    if perform_constraints_mining:
+        print(">> Running DC Mining Algorithm")
+        run_fast_adc(mine_source_df=x_mine_source_df,
+                     path_to_save_raw_dcs=raw_dcs_out_path,
+                     approx_violation_threshold=approx_violation_threshold)
+
+    if perform_constraints_eval:
+        print(">> Evaluating and Ranking DCs")
+        dcs: List[DenialConstraint] = load_dcs_from_txt(raw_dcs_out_path)
+        # Evaluate DCs metrics and Rank DCs by these metrics (via manually-crafted linear combination)
+        evaluated_dcs = eval_and_rank_dcs(
+            x_tuples_df=x_mine_source_df,
+            dcs=dcs,
+            n_tuples_to_eval=n_tuples_to_eval,
+            n_dcs_to_eval=n_dcs_to_eval,
+        )
+        evaluated_dcs.to_csv(evaluated_dcs_out_path, index=False)
 
 
 # TODO make this mining operational

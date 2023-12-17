@@ -42,7 +42,7 @@ class DCsConstrainer(Constrainer):
     def __init__(
             self,
             x_tuples_df: pd.DataFrame,  # must be the same as mining
-            eval_csv_out_path: str,
+            evaluated_dcs_out_path: str,
 
             # Data properties:
             feature_names: list,
@@ -60,13 +60,15 @@ class DCsConstrainer(Constrainer):
             # Attack parameters:
             limit_cost_ball: bool = True,
             cost_ball_eps: float = 1 / 30,
+
+            **kwargs
     ):
         # Attack parameters:
         self.limit_cost_ball = limit_cost_ball
         self.cost_ball_eps = cost_ball_eps
 
         # we define the top scores as the DCs and set them
-        self.dc_constraints_eval = load_evaluated_dcs(eval_csv_out_path)
+        self.dc_constraints_eval = load_evaluated_dcs(evaluated_dcs_out_path)
         self.x_tuples_df, self.n_dcs, self.n_tuples = x_tuples_df, n_dcs, n_tuples
         self.dcs = None
         self._get_dcs()
