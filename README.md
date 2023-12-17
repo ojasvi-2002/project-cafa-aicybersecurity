@@ -7,19 +7,20 @@ reproduction of major experiments in the paper, extension of the work,
 and utilizing the attack for practical means (e.g., evaluation of models).
 
 <div align="center">
-<img width="500" src="docs/tabular-attack-example-unified.png">
+<img width="600" src="docs/tabular-attack-example-unified.png">
 </div>
 
 ## What is CaFA?
-CaFA is an Adversarial Example attack, suited for tabular data. That is, given a set of samples and a classification 
-ML model, CaFA crafts malicious inputs--based on the original ones--that are misclassified by the model.
+CaFA is an _Adversarial Example_ attack, suited for tabular data. That is, given a set of samples and a classification 
+ML-model, CaFA crafts malicious inputs--based on the original ones--that are misclassified by the model.
 
-CaFA is composed on 3 main components:
-1. **Mine:** employing a data mining algorithm (we use [FastADC](https://github.com/RangerShaw/FastADC) and our own ranking scheme to mine Denial 
-Constraints) to learn constraints a portion of the dataset.
-2. **Peturb:** attacking the model with *TabPGD* (a PGD variation we propose to attack tabular data) and *TabCWL0* (a variation of 
-Carlini-Wagner's attack) to craft adversarial examples under structure constraints and cost limitations.
-3. **Project:** the crafted samples are then projected onto the constrained space embodied by the constraints learned in the first step.
+CaFA is composed on 3 main logical components:
+1. **Mine:** employing a constraints mining algorithm (we use [FastADC](https://github.com/RangerShaw/FastADC) and our own ranking scheme) on a 
+portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/10.14778/2536258.2536262).
+2. **Peturb:** attacking the model with *TabPGD* (a [PGD](https://arxiv.org/abs/1706.06083) variation we propose to attack tabular data) and *TabCWL0*
+(a variation of [Carlini-Wagner](https://arxiv.org/abs/1608.04644)'s attack) to craft adversarial examples under structure constraints and cost limitations.
+3. **Project:** the crafted samples are then projected onto the constrained space embodied by the constraints 
+learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3))
 
 
 
@@ -41,7 +42,7 @@ These components include:
 projection; in this these are Denial Constraints.
 
 
-## Datasets Used
+## Datasets
 We evaluate on three commonly used tabular datasets:
 [Adult](https://archive.ics.uci.edu/ml/datasets/adult) and 
 [Bank Marketing](https://archive.ics.uci.edu/dataset/222/bank+marketing), and
