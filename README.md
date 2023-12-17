@@ -6,9 +6,9 @@ Thus, it allows: transparity of technical details of our work,
 reproduction of major experiments in the paper, extension of the work, 
 and utilizing the attack for practical means (e.g., evaluation of models).
 
-![Some title here]("")
-<iframe src="./docs/tabular-attack-example-unified.pdf" frameborder="0" />
-width="100%" height="500"
+<div align="center">
+<img width="500" src="docs/tabular-attack-example-unified.png">
+</div>
 
 ## What is CaFA?
 CaFA is an Adversarial Example attack, suited for tabular data. That is, given a set of samples and a classification 
