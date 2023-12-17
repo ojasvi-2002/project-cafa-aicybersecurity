@@ -1,7 +1,9 @@
-from os import path
+import logging
 import torch
 
 from src.models.mlp import LitMLP
+
+logger = logging.getLogger(__name__)
 
 
 def load_trained_model(saved_model_path, model_type='mlp',
