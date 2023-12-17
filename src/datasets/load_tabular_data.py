@@ -35,6 +35,7 @@ class TabularDataset:
             encoding_method: str = 'one_hot_encoding',
             random_seed: int = 42,
             train_proportion: float = 0.87,
+            **kwargs
     ):
         """
         A reproducing constructor for the TabularDataset class.
@@ -101,6 +102,26 @@ class TabularDataset:
             torch.tensor(self.y_test, dtype=torch.long)
         )
         return testset
+
+    @property
+    def structure_constraints(self):
+        """
+        Aggregates all the properties of the data that define the structure of the data.
+        """
+        return dict(
+            standard_factors=self.standard_factors,
+            cat_indices=self.cat_indices,
+            ordinal_indices=self.ordinal_indices,
+            cont_indices=self.cont_indices,
+            feature_ranges=self.feature_ranges,
+            cat_encoding_method=self.cat_encoding_method,
+            one_hot_groups=self.one_hot_groups,
+            feature_names=self.feature_names,
+            is_feature_ordinal=self.is_feature_ordinal,
+            is_feature_continuous=self.is_feature_continuous,
+            is_feature_categorical=self.is_feature_categorical,
+            feature_types=self.feature_types
+        )
 
     @property
     def n_classes(self):
@@ -231,7 +252,7 @@ class TabularDataset:
 
         # Casting:
         sample_new = np.zeros_like(to_dataset.feature_names)
-        for f_idx, row in to_dataset.metadata_df[to_dataset.metadata_df.type != 'label'].iterrows():
+        for f_idx, row in to_dataset.metadata_df_features.iterrows():
             feature_name = row.feature_name
 
             if (row.type == 'categorical' and
@@ -239,7 +260,7 @@ class TabularDataset:
                 # Extract the category from the 'original' one-hot-encoding
                 oh_group_indices = from_dataset.one_hot_groups_dict[feature_name]
                 oh_category_idx = oh_group_indices[sample[oh_group_indices].argmax()]
-                oh_category = from_dataset.metadata_df.one_hot_encoding[oh_category_idx]
+                oh_category = from_dataset.metadata_df.one_hot_encoding[int(oh_category_idx)]
 
                 # Update the new sample with the new category-encoding
                 cat_to_enc_label = {cat: enc_label for enc_label, cat in row.encoding_map.items()}

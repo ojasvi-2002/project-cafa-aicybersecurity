@@ -1,0 +1,17 @@
+dataset_name: adult
+
+# Paths:
+data_dir_path: 'data/${data.dataset_name}/raw-data'
+constraints_dir_path: 'data/${dataset_name}/raw-data'
+
+# Dataset parameters:
+params:
+  data_file_path: '${data.data_dir_path}/adult.data'
+  metadata_file_path: '${data.data_dir_path}/adult.metadata.csv'
+  encoding_method: 'one_hot_encoding'
+  random_seed: 42
+  train_proportion: 0.87
+
+# Constraints paths:
+raw_dcs_out_path: '${constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs__raw.csv'
+evaluated_dcs_out_path: '${constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs__eval.csv'

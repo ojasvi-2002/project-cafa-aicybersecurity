@@ -54,7 +54,7 @@ def _add_mapping_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.Da
         df[cat_feature] = le.fit_transform(df[cat_feature])
         metadata_df.loc[metadata_df.feature_name == cat_feature, 'encoding_map'] = [{idx: actual_val for idx, actual_val in
                                                                              enumerate(le.classes_.tolist())}]
-        metadata_df.loc[metadata_df.feature_name == cat_feature, 'range'] = f'[0, {len(le.classes_)}]'
+        metadata_df.loc[metadata_df.feature_name == cat_feature, 'range'] = f'[0, {len(le.classes_) - 1}]'
     return df, metadata_df
 
 

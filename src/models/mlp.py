@@ -1,3 +1,4 @@
+import shutil
 from typing import List, Dict, Any
 
 import optuna
@@ -117,6 +118,7 @@ class LitMLP(pl.LightningModule):
 
 def train(hyperparameters,
           data_parameters,
+          model_artifact_path,
           additional_callbacks=None):
     """
     Train a lightning-based model (using lightning Trainer API) with the given hyperparameters.
@@ -168,6 +170,9 @@ def train(hyperparameters,
         'best_model_path': trainer.checkpoint_callback.best_model_path,
         'best_model_val_hp_metric': trainer.checkpoint_callback.best_model_score,
     }
+
+    shutil.copy(trainer.checkpoint_callback.best_model_path, model_artifact_path)
+
     print(results)
     return results
 

@@ -1,0 +1,10 @@
+n_samples_to_attack: 1000
+perform_projection: True
+
+
+defaults:
+  - data: adult
+  - ml_model:  mlp
+  - constraints: dcs  # if 'None' we don't integrate them, also means we skip projection.
+  - attack: cafa
+

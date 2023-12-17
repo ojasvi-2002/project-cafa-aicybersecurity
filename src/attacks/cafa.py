@@ -64,6 +64,7 @@ class CaFA(EvasionAttack):
 
             # Misc:  # TODO [ADD-FEATURE] integrate summary_writer in the code
             summary_writer: Union[str, bool, SummaryWriter] = False,
+            **kwargs
     ):
         """
 
