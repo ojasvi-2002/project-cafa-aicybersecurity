@@ -1,7 +1,6 @@
 name: adult
 
 
-
 # Dataset parameters:
 params:
   dataset_name: ${data.name}

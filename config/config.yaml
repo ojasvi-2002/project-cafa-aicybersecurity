@@ -1,10 +1,12 @@
+defaults:
+  - _self_
+  - data: phishing  # dataset to run on
+  - ml_model:  mlp  # model to attack
+  - attack: cafa  # attack to run
+  - constraints: dcs  # constraints to use; if not shown we don't integrate constraints, which also means we skip projection.
+
+
+# general config:
 n_samples_to_attack: 1000
 perform_projection: True
-
-
-defaults:
-  - data: adult
-  - ml_model:  mlp
-  - constraints: dcs  # if 'None' we don't integrate them, also means we skip projection.
-  - attack: cafa
 
