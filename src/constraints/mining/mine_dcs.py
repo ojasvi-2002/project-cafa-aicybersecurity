@@ -58,7 +58,7 @@ def run_fast_adc(mine_source_df: pd.DataFrame,
     path_to_jar = os.path.join(curr_package_dir, path_to_fastadc_miner_jar)
 
     # Save mine_source_df to 'input_processed_data_csv_name'
-    input_processed_data_csv_name = os.path.join(curr_package_dir, "input_processed_data.csv")
+    input_processed_data_csv_name = os.path.join(curr_package_dir, "temp___input_processed_data.csv")
     mine_source_df.to_csv(input_processed_data_csv_name, index=False)
 
     # Run:

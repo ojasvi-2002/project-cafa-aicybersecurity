@@ -1,3 +1,4 @@
+import logging
 import shutil
 from typing import List, Dict, Any
 
@@ -9,6 +10,8 @@ from torch import nn
 import torch
 
 from src.datasets.load_tabular_data import TabularDataset
+
+logger = logging.getLogger(__name__)
 
 
 class MLP(nn.Module):
@@ -23,10 +26,10 @@ class MLP(nn.Module):
         self.n_layers = n_layers
         self.hidden_dim = hidden_dim
 
-        # define model's architecture:
+        # Define model's architecture:
         layers = [
-            nn.BatchNorm1d(input_dim),  # TODO discard affine=False # normalize input
-            nn.Linear(input_dim, hidden_dim),  # first layer
+            nn.BatchNorm1d(input_dim),
+            nn.Linear(input_dim, hidden_dim),  # First layer
             nn.ReLU(),
         ]
         for _ in range(n_layers - 1):
@@ -35,7 +38,7 @@ class MLP(nn.Module):
                 nn.ReLU()
             ]
         layers += [
-            nn.Linear(hidden_dim, output_dim)  # final layer
+            nn.Linear(hidden_dim, output_dim)  # Final layer
         ]
         self.model = nn.Sequential(*layers)
 
@@ -44,7 +47,6 @@ class MLP(nn.Module):
         return logits
 
 
-# TODO currently the main metric is auc, make it configurable?
 # Wrapping with torch lightning functionality:
 class LitMLP(pl.LightningModule):
     """ Defined the torch lightning system, the wraps the torch module (MLP) """
@@ -116,19 +118,25 @@ class LitMLP(pl.LightningModule):
         )
 
 
-def train(hyperparameters,
-          data_parameters,
-          model_artifact_path,
-          additional_callbacks=None):
+def train(
+        hyperparameters: Dict[str, Any],
+        trainset: torch.utils.data.Dataset,
+        testset: torch.utils.data.Dataset,
+        tab_dataset: TabularDataset,
+        model_artifact_path: str = None,
+        additional_callbacks: List[pl.callbacks.Callback] = None
+):
     """
     Train a lightning-based model (using lightning Trainer API) with the given hyperparameters.
-    """
 
-    # TODO decouple data out of this function?
-    # Load dataset:
-    tab_dataset = TabularDataset(**data_parameters)
-    trainset, testset = tab_dataset.trainset, tab_dataset.testset
-    hyperparameters['data_parameters'] = data_parameters
+    :param hyperparameters: the hyperparameters to use for training.
+    :param trainset: the training dataset, in torch Dataset format.
+    :param testset: the test dataset, in torch Dataset format.
+    :param tab_dataset: the dataset object, for fetching metadata and parameters to log for reproducibility.
+    :param model_artifact_path: the path to save the trained model to.
+    :param additional_callbacks: additional callbacks to use on Lightning's trainer.
+    :return: the results of the training, including the best model's path.
+    """
 
     # Setup data loaders:
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=2048, shuffle=True)
@@ -150,16 +158,16 @@ def train(hyperparameters,
 
     # define the trainer:
     trainer = pl.Trainer(
-        max_epochs=30,
+        max_epochs=100,
         callbacks=callbacks,
-        default_root_dir=f"outputs/training/mlps/{data_parameters['dataset_name']}/",  # TODO configurable
+        default_root_dir=f"outputs/training/mlps/{tab_dataset.data_parameters['dataset_name']}/",  # TODO configurable
 
         # Default configs:
         # accelerator="auto",
         # devices="auto",
         # logger=True, # tensorboard if available, otherwise csv
     )
-    trainer.logger.log_hyperparams(hyperparameters)
+    trainer.logger.log_hyperparams(hyperparameters)  # TODO also save `tab_dataset.data_parameters` for reproducibility
     trainer.fit(model, train_dataloaders=trainloader, val_dataloaders=testloader)
 
     results = {
@@ -171,17 +179,23 @@ def train(hyperparameters,
         'best_model_val_hp_metric': trainer.checkpoint_callback.best_model_score,
     }
 
-    shutil.copy(trainer.checkpoint_callback.best_model_path, model_artifact_path)
+    if model_artifact_path is not None:
+        shutil.copy(trainer.checkpoint_callback.best_model_path, model_artifact_path)
 
-    print(results)
+    logger.info(f"Finished training. Results: {results}")
     return results
 
 
-def grid_search_hyperparameters(data_parameters):
+def grid_search_hyperparameters(
+        trainset: torch.utils.data.Dataset,
+        testset: torch.utils.data.Dataset,
+        tab_dataset: TabularDataset,
+):
     """
     Runs hyperparameters tuning using optuna.
     :return: the best parameters found
     """
+
     def optuna_hpo_objective(trial: optuna.trial.Trial) -> float:
         """
         Wraps the training to set the specific objective for optuna to optimize.
@@ -189,8 +203,8 @@ def grid_search_hyperparameters(data_parameters):
         # suggested HPs dict:
         hyperparameters = LitMLP.define_trial_parameters(trial)
         # train the model with the suggested HPs:
-        results = train(hyperparameters,
-                        data_parameters,
+        results = train(hyperparameters, trainset=trainset, testset=testset,
+                        tab_dataset=tab_dataset,
                         additional_callbacks=[
                             optuna.integration.PyTorchLightningPruningCallback(trial, monitor="val_hp_metric")
                         ])
@@ -201,15 +215,6 @@ def grid_search_hyperparameters(data_parameters):
     study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(optuna_hpo_objective, n_trials=100, timeout=600)
 
-    return study.best_trial.params
-
-
-if __name__ == '__main__':
-    train(
-        dict(
-            n_layers=3,
-            hidden_dim=128,
-            lr=0.001,
-            weight_decay=1e-05,
-        )
-    )
+    best_hparams = study.best_trial.params
+    logger.info(f"Finished grid search. Best hyperparameters found: {best_hparams}")
+    return best_hparams

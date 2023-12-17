@@ -27,11 +27,14 @@ def main(cfg: DictConfig) -> None:
     tab_dataset = TabularDataset(**cfg.data.params)
 
     # 2. Load model; optionally, re-train before:
-    if cfg.ml_model.perform_training:
-        best_hparams = cfg.model.default_hparams
-        if cfg.ml_model.perform_grid_search:
-            best_hparams = grid_search_hyperparameters(cfg.data.params)  # todo generalize
-        train(best_hparams, cfg.data.params, model_artifact_path=cfg.ml_model.model_artifact_path)  # todo generalize, better params management
+    if cfg.ml_model.perform_training or cfg.ml_model.perform_grid_search_hparams:
+        best_hparams = cfg.ml_model.default_hparams
+        if cfg.ml_model.perform_grid_search_hparams:
+            best_hparams = grid_search_hyperparameters(trainset=tab_dataset.trainset,
+                                                       testset=tab_dataset.testset,
+                                                       tab_dataset=tab_dataset)
+        train(best_hparams, trainset=tab_dataset.trainset, testset=tab_dataset.testset, tab_dataset=tab_dataset,
+              model_artifact_path=cfg.ml_model.model_artifact_path)
     model = load_trained_model(cfg.ml_model.model_artifact_path, model_type=cfg.ml_model.model_type)
 
     # 3. Wrap the model to ART classifier, for executing the attack:
@@ -99,21 +102,23 @@ def main(cfg: DictConfig) -> None:
 
         for x_orig, x_adv in zip(X, X_adv):  # for validation
 
-            # A. Transform sample to the format of the DCs dataset
-            sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
+            # 5.A. Transform sample to the format of the DCs dataset
+            sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
+                                                            to_dataset=tab_dcs_dataset)
             sample_adv = TabularDataset.cast_sample_format(x_adv, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
 
-            # A.1. Sanity checks:
+            # 5.A.1. Sanity checks:
             assert np.all(x_orig ==
                           TabularDataset.cast_sample_format(sample_orig, from_dataset=tab_dcs_dataset,
                                                             to_dataset=tab_dataset))
             assert np.all(sample_orig ==
-                          TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset))
+                          TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
+                                                            to_dataset=tab_dcs_dataset))
 
-            # B. Project
+            # 5.B. Project
             is_succ, sample_projected = projector.project(sample_adv, sample_original=sample_orig)
 
-            # C. Transform back to the format of the model input
+            # 5.C. Transform back to the format of the model input
             x_adv_proj = TabularDataset.cast_sample_format(sample_projected, from_dataset=tab_dcs_dataset,
                                                            to_dataset=tab_dataset)
             X_adv_proj.append(x_adv_proj)

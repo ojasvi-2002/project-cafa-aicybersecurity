@@ -50,7 +50,7 @@ class TabularDataset:
         """
 
         # Saves the parameters the uniquely define this tabular-dataset instance, for reproducibility
-        self.dataparameters = {
+        self.data_parameters = {
             'dataset_name': dataset_name,
             'data_file_path': data_file_path,
             'metadata_file_path': metadata_file_path,
@@ -88,7 +88,7 @@ class TabularDataset:
         self._validate_input()
 
     @property
-    def trainset(self):
+    def trainset(self) -> torch.utils.data.Dataset:
         trainset = torch.utils.data.TensorDataset(
             torch.tensor(self.X_train, dtype=torch.float32),
             torch.tensor(self.y_train, dtype=torch.long)
@@ -96,7 +96,7 @@ class TabularDataset:
         return trainset
 
     @property
-    def testset(self):
+    def testset(self) -> torch.utils.data.Dataset:
         testset = torch.utils.data.TensorDataset(
             torch.tensor(self.X_test, dtype=torch.float32),
             torch.tensor(self.y_test, dtype=torch.long)
@@ -238,13 +238,13 @@ class TabularDataset:
         """
 
         # Casting validations:
-        assert from_dataset.dataparameters['dataset_name'] == to_dataset.dataparameters['dataset_name'], \
+        assert from_dataset.data_parameters['dataset_name'] == to_dataset.data_parameters['dataset_name'], \
             "`from_dataset` and `to_dataset` should be the same dataset"
         assert len(sample) == len(from_dataset.feature_names), "`from_dataset` should be the object where sample from"
         assert set(to_dataset.feature_names) == set(from_dataset.feature_names), \
             "Both datasets should have the same features"
-        if (from_dataset.dataparameters['random_seed'] != to_dataset.dataparameters['random_seed'] or
-                from_dataset.dataparameters['train_proportion'] != to_dataset.dataparameters['train_proportion']):
+        if (from_dataset.data_parameters['random_seed'] != to_dataset.data_parameters['random_seed'] or
+                from_dataset.data_parameters['train_proportion'] != to_dataset.data_parameters['train_proportion']):
             print("[WARNING] Casting seem to be between datasets with different train-test splits. Not recommended "
                   "for most applications (e.g., mining and attacking)")
 
