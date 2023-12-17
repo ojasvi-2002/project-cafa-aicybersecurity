@@ -16,6 +16,8 @@ PATH_TO_DC_MINER_JAR = "resources/DCFinder_ADC-1.0-SNAPSHOT.jar"  # path is rela
 def mine_dcs(x_mine_source_df: pd.DataFrame,
              raw_dcs_out_path: str,
              evaluated_dcs_out_path: str,
+             path_to_fastadc_miner_jar: str,
+             x_dcs_col_names: List[str],
 
              # DCs configuration
              approx_violation_threshold: float = 0.01,
@@ -26,11 +28,14 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
              perform_constraints_mining: bool = True,
              perform_constraints_eval: bool = True,
              ):
+    x_dcs_df = x_mine_source_df.copy()
+    x_dcs_df.columns = x_dcs_col_names
     if perform_constraints_mining:
         print(">> Running DC Mining Algorithm")
-        run_fast_adc(mine_source_df=x_mine_source_df,
+        run_fast_adc(mine_source_df=x_dcs_df,
                      path_to_save_raw_dcs=raw_dcs_out_path,
-                     approx_violation_threshold=approx_violation_threshold)
+                     approx_violation_threshold=approx_violation_threshold,
+                     path_to_fastadc_miner_jar=path_to_fastadc_miner_jar)
 
     if perform_constraints_eval:
         print(">> Evaluating and Ranking DCs")
@@ -45,24 +50,25 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
         evaluated_dcs.to_csv(evaluated_dcs_out_path, index=False)
 
 
-# TODO make this mining operational
-# TODO what was changed in DCs source code? is it configurable out-of-the-box?
 def run_fast_adc(mine_source_df: pd.DataFrame,
                  path_to_save_raw_dcs: str,
+                 path_to_fastadc_miner_jar: str,
                  approx_violation_threshold: float = 0.01):
-    # get the script's dir:
     curr_package_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    path_to_jar = os.path.join(curr_package_dir, PATH_TO_DC_MINER_JAR)
+    path_to_jar = os.path.join(curr_package_dir, path_to_fastadc_miner_jar)
 
-    # save mine_source_df to 'input_processed_data_csv_name'
+    # Save mine_source_df to 'input_processed_data_csv_name'
     input_processed_data_csv_name = os.path.join(curr_package_dir, "input_processed_data.csv")
     mine_source_df.to_csv(input_processed_data_csv_name, index=False)
 
-    # run:
+    # Run:
     print(">> Running DC Mining Algorithm")
-    res = subprocess.run(["java", "-jar", path_to_jar, input_processed_data_csv_name, str(approx_violation_threshold)])
+    res = subprocess.run(["java", "-jar", path_to_jar, input_processed_data_csv_name, path_to_save_raw_dcs,
+                          str(approx_violation_threshold)])
+    # raise exception if the mining failed
+    res.check_returncode()
+
     print(res, res.stdout, res.stderr, sep="\n----")
-    # TODO make sure it was saved to `path_to_save_raw_dcs`
 
 
 def load_dcs_from_txt(dcs_txt_path: str) -> List[DenialConstraint]:

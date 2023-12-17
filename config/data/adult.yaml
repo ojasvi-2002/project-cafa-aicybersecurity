@@ -19,5 +19,5 @@ paths:
   metadata_file_path: '${data.paths.data_dir_path}/adult.metadata.csv'
   # Constraints paths:
   constraints_dir_path: 'data/${data.name}/mined-constraints'
-  raw_dcs_out_path: '${data.paths.constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs__raw.csv'
+  raw_dcs_out_path: '${data.paths.constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs.txt'
   evaluated_dcs_out_path: '${data.paths.constraints_dir_path}/adult-13cols__DC_threshold=0.01__fastadc_dcs__eval.csv'

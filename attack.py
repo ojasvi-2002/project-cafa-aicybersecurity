@@ -57,6 +57,7 @@ def main(cfg: DictConfig) -> None:
         # [Optionally] Mine the DCs:
         mine_dcs(
             x_mine_source_df=tab_dcs_dataset.x_df,
+            x_dcs_col_names=tab_dcs_dataset.x_dcs_col_names,
             **cfg.constraints.mining_params
         )
 

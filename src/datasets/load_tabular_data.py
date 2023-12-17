@@ -204,13 +204,11 @@ class TabularDataset:
         ).values.tolist()
 
     @property
-    def feature_names_dcs_format(self) -> List[str]:
-        """
-        :return: a list of feature names, in the format used in the DCs mining algorithm (FastADC)
-        """
-        return self.metadata_df_features.apply(
+    def x_dcs_col_names(self):
+        dcs_format_col_names = self.metadata_df_features.apply(
             lambda row: f"{row.feature_name}({row['dc-mining-type'].title()})", axis=1
         ).values.tolist()
+        return dcs_format_col_names
 
     def _validate_input(self):
         f_names_from_metadata = self.metadata_df_features.feature_name.values.tolist()

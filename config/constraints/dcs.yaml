@@ -22,5 +22,8 @@ mining_params:
 
   # Mining hyperparameters
   approx_violation_threshold: 0.01
+  path_to_fastadc_miner_jar: 'src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar'
+
+  # Ranking hyperparameters
   n_tuples_to_eval: 750
   n_dcs_to_eval: 10000
