@@ -9,7 +9,7 @@ def load_trained_model(saved_model_path, model_type='mlp',
     """
     Loads the required model from the saved models directory
     """
-    print(f"Loading model from {saved_model_path}")
+    logger.info(f"Loading model from {saved_model_path}")
 
     if model_type == 'mlp':
         map_location = None if torch.cuda.is_available() else 'cpu'

@@ -1,13 +1,16 @@
 from typing import List, Dict, Type
 import ast
+import logging
 
 import numpy as np
 import torch
-from sklearn.model_selection import train_test_split
 
+from sklearn.model_selection import train_test_split
 from src.datasets.preprocess.adult import get_adult_dataset
 from src.datasets.preprocess.bank import get_bank_dataset
 from src.datasets.preprocess.phishing import get_phishing_dataset
+
+logger = logging.getLogger(__name__)
 
 dataset_name_to_preprocess_func = {
     'adult': get_adult_dataset,
@@ -27,6 +30,7 @@ class TabularDataset:
         * Aligning the training-set and mining-set, to use this samples as part of constraint inference (in the attack).
         * Reproducing experiments.
     """
+
     def __init__(
             self,
             dataset_name: str,
@@ -245,8 +249,8 @@ class TabularDataset:
             "Both datasets should have the same features"
         if (from_dataset.data_parameters['random_seed'] != to_dataset.data_parameters['random_seed'] or
                 from_dataset.data_parameters['train_proportion'] != to_dataset.data_parameters['train_proportion']):
-            print("[WARNING] Casting seem to be between datasets with different train-test splits. Not recommended "
-                  "for most applications (e.g., mining and attacking)")
+            logger.warning("[WARNING] Casting seem to be between datasets with different train-test splits. "
+                           "Not recommended for most applications (e.g., mining and attacking)")
 
         # Casting:
         sample_new = np.zeros_like(to_dataset.feature_names)
@@ -267,7 +271,8 @@ class TabularDataset:
             elif (row.type == 'categorical' and
                   from_dataset.cat_encoding_method is None and to_dataset.cat_encoding_method == 'one_hot_encoding'):
                 # Extract the category from the original label-encoded dataset
-                encoding_map_origin = from_dataset.metadata_df[from_dataset.metadata_df.feature_name == feature_name].encoding_map.item()
+                encoding_map_origin = from_dataset.metadata_df[
+                    from_dataset.metadata_df.feature_name == feature_name].encoding_map.item()
                 f_idx_in_origin_dataset = (from_dataset.feature_names == feature_name).argmax()
                 encoded_category = encoding_map_origin[sample[f_idx_in_origin_dataset]]
 

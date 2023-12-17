@@ -164,10 +164,10 @@ class CaFA(EvasionAttack):
             mask[update_samples] = new_mask[update_samples]  # don't update mask for non-updated samples
 
             # Evaluate metrics
-            print(f"[{i}] success(x_adv, y):", (self.estimator.predict(x_adv).argmax(axis=1) != y).mean())
-            print(f"[{i}] l0(x_adv):", self.calc_l0_cost(x_adv, x).mean())
-            print(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
-            print(f"[{i}] update rate:", update_samples.mean())
+            logger.info(f"[{i}] success(x_adv, y):", (self.estimator.predict(x_adv).argmax(axis=1) != y).mean())
+            logger.info(f"[{i}] l0(x_adv):", self.calc_l0_cost(x_adv, x).mean())
+            logger.info(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
+            logger.info(f"[{i}] update rate:", update_samples.mean())
 
             # Perform updates
             i += 1  # decrease remaining iterations
@@ -298,7 +298,6 @@ class CaFA(EvasionAttack):
         grad = self.estimator.loss_gradient(x_adv, y)
         cw_score = np.abs(grad * delta)
 
-        # TODO if one-hot encoding
         if self.cat_encoding_method == 'one_hot_encoding':
             # Aggregate score for One-Hot-Encoded feature over all categories
             for oh_group in self.one_hot_groups:

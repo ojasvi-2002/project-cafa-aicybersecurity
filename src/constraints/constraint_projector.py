@@ -1,6 +1,9 @@
 import numpy as np
 
 from src.constraints.utilizing.constrainer import Constrainer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConstraintProjector:
@@ -62,7 +65,7 @@ class ConstraintProjector:
         else:
             n_phi, is_sat, projected_sample = upper_phi, upper_phi_sat, upper_projected_sample
 
-        print(f"Projection was {'successful' if is_sat else 'failed'} with budget={n_phi}")
+        logger.info(f"Projection was {'successful' if is_sat else 'failed'} with budget={n_phi}")
 
         return is_sat, projected_sample
 

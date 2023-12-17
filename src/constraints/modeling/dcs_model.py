@@ -2,12 +2,16 @@ import pandas as pd
 import numpy as np
 from z3 import *
 
+import logging
 from functools import lru_cache
 from typing import Dict, List, Tuple, Union
 
 """
 Define the constraint model of the utilized constraints, Denial Constraints.
 """
+
+
+logger = logging.getLogger(__name__)
 
 
 class DenialConstraint:
@@ -116,8 +120,8 @@ class DenialConstraint:
         # 2. Iterate on relevant predicates and check sat.
         for pred in self.dc_predicates:
             if pred.col1_name != pred.col1_name:
-                print(f"[WARNING] Predicate {pred} includes two different variables; "
-                      f"as opposed to this heuristics assumption.")
+                logger.warning(f"[WARNING] Predicate {pred} includes two different variables; "
+                               f"as opposed to this heuristics assumption.")
             if pred.col1_name != feature_name:
                 continue  # we only care about predicates with the given feature_name.
 

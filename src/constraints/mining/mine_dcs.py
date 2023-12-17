@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from ast import literal_eval
+import logging
 
 from src.constraints.modeling.dcs_model import DenialConstraint
 
-PATH_TO_DC_MINER_JAR = "resources/DCFinder_ADC-1.0-SNAPSHOT.jar"  # path is relative to this pacakge
+logger = logging.getLogger(__name__)
 
 
 def mine_dcs(x_mine_source_df: pd.DataFrame,
@@ -31,14 +32,14 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
     x_dcs_df = x_mine_source_df.copy()
     x_dcs_df.columns = x_dcs_col_names
     if perform_constraints_mining:
-        print(">> Running DC Mining Algorithm")
+        logger.info(">> Running DC Mining Algorithm")
         run_fast_adc(mine_source_df=x_dcs_df,
                      path_to_save_raw_dcs=raw_dcs_out_path,
                      approx_violation_threshold=approx_violation_threshold,
                      path_to_fastadc_miner_jar=path_to_fastadc_miner_jar)
 
     if perform_constraints_eval:
-        print(">> Evaluating and Ranking DCs")
+        logger.info(">> Evaluating and Ranking DCs")
         dcs: List[DenialConstraint] = load_dcs_from_txt(raw_dcs_out_path)
         # Evaluate DCs metrics and Rank DCs by these metrics (via manually-crafted linear combination)
         evaluated_dcs = eval_and_rank_dcs(
@@ -62,13 +63,13 @@ def run_fast_adc(mine_source_df: pd.DataFrame,
     mine_source_df.to_csv(input_processed_data_csv_name, index=False)
 
     # Run:
-    print(">> Running DC Mining Algorithm")
+    logger.info(">> Running DC Mining Algorithm")
     res = subprocess.run(["java", "-jar", path_to_jar, input_processed_data_csv_name, path_to_save_raw_dcs,
                           str(approx_violation_threshold)])
     # raise exception if the mining failed
     res.check_returncode()
 
-    print(res, res.stdout, res.stderr, sep="\n----")
+    logger.info(f"{res} \n {res.stdout} \n {res.stderr}")
 
 
 def load_dcs_from_txt(dcs_txt_path: str) -> List[DenialConstraint]:
@@ -117,7 +118,7 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     for dc in dcs:
         dc.set_other_tuples_data(x_tuples_df)
 
-    print(f"Evaluating {len(dcs)=}, `t` from {len(x_tuples_df)=} and `t'` from {len(x_tuples_df)=}")
+    logger.info(f"Evaluating {len(dcs)=}, `t` from {len(x_tuples_df)=} and `t'` from {len(x_tuples_df)=}")
 
     # Metric I (g_1): for each DC we calculate the violation rate (over all the possible pairs)
     ##      [Analogue to f_1 from Livshits et al. 2021 / g_1 in FastADC]
@@ -152,7 +153,7 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
                 sat_pred_count_per_dc[dc_idx, int(dc_pred_count_idx)] += dc_pred_count_val
 
         best_other_tuples_per_dc[dc_idx] = dc_sat_per_other_tuples.argsort()[-n_tuples_to_eval:][::-1]
-        print(dc_idx, ">>", dc_sat_per_other_tuples.min(), dc_sat_per_other_tuples.max())
+        logger.info(f"dc_idx >> {dc_sat_per_other_tuples.min()} {dc_sat_per_other_tuples.max()}")
 
     # Normalize metrics
     pairs_violation_rate_per_dc /= n_tuples_to_eval * n_tuples_to_eval  # normalize by number of pairs
@@ -161,17 +162,17 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     w = (np.arange(sat_pred_count_per_dc.shape[-1]) + 1) / sat_pred_count_per_dc.shape[-1]
     coverage_per_dc = (sat_pred_count_per_dc * w).sum(axis=-1) / sat_pred_count_per_dc.sum(axis=-1)
 
-    print(f">> Mean DC violation rate (lower->better, rate is over all pairs): "
+    logger.info(f">> Mean DC violation rate (lower->better, rate is over all pairs): "
           f"{pairs_violation_rate_per_dc.mean() * 100}%")
-    print(f">> Mean DC violation rate (lower->better, rate over tuples, for each tuples there exist a pair violating): "
+    logger.info(f">> Mean DC violation rate (lower->better, rate over tuples, for each tuples there exist a pair violating): "
           f"{tuple_violation_rate_per_dc.mean() * 100}%")
-    print(f">> Mean Succinctness (higher->better, correlates to predicate size, higher the closer "
+    logger.info(f">> Mean Succinctness (higher->better, correlates to predicate size, higher the closer "
           f"DCs to the min-sized DC): {succinctness_per_dc.mean() * 100}%")
-    print(f">> Mean Coverage (higher->better, correlates to amount of predicates being sat in DCs): "
+    logger.info(f">> Mean Coverage (higher->better, correlates to amount of predicates being sat in DCs): "
           f"{coverage_per_dc.mean() * 100}%")
 
-    print(f">> {(pairs_violation_rate_per_dc == 1).mean() * 100}% of the DC are perfectly satisfied :) ")
-    print(f">> Worst DC, with {pairs_violation_rate_per_dc.max() * 100}% sat-rate was : "
+    logger.info(f">> {(pairs_violation_rate_per_dc == 1).mean() * 100}% of the DC are perfectly satisfied :) ")
+    logger.info(f">> Worst DC, with {pairs_violation_rate_per_dc.max() * 100}% sat-rate was : "
           f"{dcs[pairs_violation_rate_per_dc.argmax()]}")
 
     # Save metrics:
