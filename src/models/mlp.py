@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 from typing import List, Dict, Any
 
@@ -181,6 +182,12 @@ def train(
 
     if model_artifact_path is not None:
         shutil.copy(trainer.checkpoint_callback.best_model_path, model_artifact_path)
+        haparams_file_from = os.path.join(os.path.dirname(os.path.dirname(trainer.checkpoint_callback.best_model_path)),
+                                          'hparams.yaml')
+        haparams_file_to = os.path.join(os.path.dirname(model_artifact_path),
+                                        f'{os.path.basename(model_artifact_path)}.hparams.yaml')
+        shutil.copy(haparams_file_from, haparams_file_to)
+        logger.info(f"Saved model's artifact to {model_artifact_path}")
 
     logger.info(f"Finished training. Results: {results}")
     return results
