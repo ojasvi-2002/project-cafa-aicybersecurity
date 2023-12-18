@@ -5,16 +5,17 @@ constrainer_params:
   limit_cost_ball: True
   cost_ball_eps: 0.03333333333333333
 
+perform_projection: True  # if False, we skips projection.
 projector_params:
   upper_projection_budget_bound: 0.5
 
 
 mining_params:
   # Re-execute constraints mining and its violation parameter
-  perform_constraints_mining: False
+  perform_constraints_mining: ${perform_constraints_mining}
 
   # Re-execute raw constraints evaluation and its parameters
-  perform_constraints_eval: False  # must be True if `perform_constraints_mining` is True
+  perform_constraints_ranking: ${perform_constraints_ranking}  # must be True if `perform_constraints_mining` is True
 
   # Paths to load/save the mined constraints from/to.
   raw_dcs_out_path: ${data.paths.raw_dcs_out_path}

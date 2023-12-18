@@ -59,9 +59,9 @@ def evaluate_crafted_samples(
 
     return {
         # Attack success:
-        'is_misclassified_mean': is_misclassified.mean(),
-        'is_comp_mean': is_comp.mean(),
-        'is_mis_and_comp_mean': (is_misclassified & is_comp).mean(),
+        'is_misclassified_rate': is_misclassified.mean(),
+        'is_comp_rate': is_comp.mean(),
+        'is_mis_and_comp_rate': (is_misclassified & is_comp).mean(),
 
         # Costs:
         #  - L0:

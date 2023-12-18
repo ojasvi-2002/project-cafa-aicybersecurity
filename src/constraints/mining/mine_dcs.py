@@ -27,7 +27,7 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
 
              # Phases to execute:
              perform_constraints_mining: bool = True,
-             perform_constraints_eval: bool = True,
+             perform_constraints_ranking: bool = True,
              ):
     x_dcs_df = x_mine_source_df.copy()
     x_dcs_df.columns = x_dcs_col_names
@@ -38,7 +38,7 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
                      approx_violation_threshold=approx_violation_threshold,
                      path_to_fastadc_miner_jar=path_to_fastadc_miner_jar)
 
-    if perform_constraints_eval:
+    if perform_constraints_ranking:
         logger.info(">> Evaluating and Ranking DCs")
         dcs: List[DenialConstraint] = load_dcs_from_txt(raw_dcs_out_path)
         # Evaluate DCs metrics and Rank DCs by these metrics (via manually-crafted linear combination)

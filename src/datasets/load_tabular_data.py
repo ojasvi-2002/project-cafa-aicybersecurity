@@ -263,6 +263,7 @@ class TabularDataset:
                 oh_group_indices = from_dataset.one_hot_groups_dict[feature_name]
                 oh_category_idx = oh_group_indices[sample[oh_group_indices].argmax()]
                 oh_category = from_dataset.metadata_df.one_hot_encoding[int(oh_category_idx)]
+                oh_category = int(float(oh_category))
 
                 # Update the new sample with the new category-encoding
                 cat_to_enc_label = {cat: enc_label for enc_label, cat in row.encoding_map.items()}

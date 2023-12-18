@@ -1,12 +1,16 @@
 defaults:
   - _self_
-  - data: phishing  # dataset to run on
+  - data: bank  # dataset to run on
   - ml_model:  mlp  # model to attack
   - attack: cafa  # attack to run
   - constraints: dcs  # constraints to use; if not shown we don't integrate constraints, which also means we skip projection.
 
 
-# general config:
+# General config:
 n_samples_to_attack: 1000
-perform_projection: True
 
+# Stages to skip (and load existing artifacts) or reproduce:
+perform_training: True  # whether to re-execute training or not.
+perform_training_grid_search_hparams: True  # whether to re-execute grid search or not.
+perform_constraints_mining: False  # whether to re-execute the constraints mining or not.
+perform_constraints_ranking: True  # whether to re-execute the evaluation and ranking of the constraints or not.

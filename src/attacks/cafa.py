@@ -132,7 +132,12 @@ class CaFA(EvasionAttack):
             - The adversarial samples enforce the structure-constraints.
             - The adversarial samples are crafted within an epsilon l-inf ball.
             - The algorithm minimizes the l0 of the adversarial perturbation.
+
+        :param x: An array with the original inputs to be attacked.
+        :param y: An array with the original labels of the inputs.
+        :return: An array holding the adversarial examples.
         """
+
         if y is None:  # Use model predictions as correct outputs, if not provided
             y = self.estimator.predict(x).argmax(axis=1)
 
@@ -164,10 +169,10 @@ class CaFA(EvasionAttack):
             mask[update_samples] = new_mask[update_samples]  # don't update mask for non-updated samples
 
             # Evaluate metrics
-            logger.info(f"[{i}] success(x_adv, y):", (self.estimator.predict(x_adv).argmax(axis=1) != y).mean())
-            logger.info(f"[{i}] l0(x_adv):", self.calc_l0_cost(x_adv, x).mean())
-            logger.info(f"[{i}] mean(mask):", mask.sum(axis=1).mean())
-            logger.info(f"[{i}] update rate:", update_samples.mean())
+            logger.info(f"[{i}] success(x_adv, y): {(self.estimator.predict(x_adv).argmax(axis=1) != y).mean()}")
+            logger.info(f"[{i}] l0(x_adv): {self.calc_l0_cost(x_adv, x).mean()}")
+            logger.info(f"[{i}] mean(mask): {mask.sum(axis=1).mean()}")
+            logger.info(f"[{i}] update rate: {update_samples.mean()}")
 
             # Perform updates
             i += 1  # decrease remaining iterations
