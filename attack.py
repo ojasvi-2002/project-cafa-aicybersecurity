@@ -39,14 +39,9 @@ def main(cfg: DictConfig) -> None:
     model = load_trained_model(cfg.ml_model.model_artifact_path, model_type=cfg.ml_model.model_type)
 
     # 3. Wrap the model to ART classifier, for executing the attack:
-    def model_loss(output, target):  # TODO resolve this hack
-        output = output.float()
-        target = target.long()
-        return torch.functional.F.cross_entropy(output, target)
-
     classifier = PyTorchClassifier(
         model=model,
-        loss=model_loss,
+        loss=lambda output, target: torch.functional.F.cross_entropy(output, target.long()),
         input_shape=tab_dataset.n_features,
         nb_classes=tab_dataset.n_classes,
     )
