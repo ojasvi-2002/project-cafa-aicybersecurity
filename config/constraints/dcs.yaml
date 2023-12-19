@@ -5,7 +5,6 @@ constrainer_params:
   limit_cost_ball: True
   cost_ball_eps: 0.03333333333333333
 
-perform_projection: True  # if False, we skips projection.
 projector_params:
   upper_projection_budget_bound: 0.5
 
@@ -26,5 +25,5 @@ mining_params:
   path_to_fastadc_miner_jar: 'src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar'
 
   # Ranking hyperparameters
-  n_tuples_to_eval: 750
-  n_dcs_to_eval: 10000
+  n_tuples_to_eval: 1500
+  n_dcs_to_eval: 15000

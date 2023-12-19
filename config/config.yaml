@@ -7,10 +7,12 @@ defaults:
 
 
 # General config:
-n_samples_to_attack: 1000
+n_samples_to_attack: 1000  # number of samples to attack
 
-# Stages to skip (and load existing artifacts) or reproduce:
-perform_training: True  # whether to re-execute training or not.
-perform_training_grid_search_hparams: True  # whether to re-execute grid search or not.
+# Stages to skip (by loading existing artifacts) or reproduce:
+perform_training: False  # whether to re-execute training or not.
+perform_training_grid_search_hparams: False  # whether to re-execute grid search or not.
 perform_constraints_mining: False  # whether to re-execute the constraints mining or not.
-perform_constraints_ranking: True  # whether to re-execute the evaluation and ranking of the constraints or not.
+perform_constraints_ranking: False  # whether to re-execute the evaluation and ranking of the constraints or not.
+perform_attack: True  # whether to execute the attack or not. debugging purposes only. TODO DISCARD ME
+perform_projection: True  # if False, we skips projection.

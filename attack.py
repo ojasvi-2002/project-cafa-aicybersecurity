@@ -87,16 +87,18 @@ def main(cfg: DictConfig) -> None:
     logger.info(f"before-attack: {evaluations['before-attack']}")
 
     # 4. Attack:
-    attack = CaFA(estimator=classifier,
-                  **tab_dataset.structure_constraints,
-                  **cfg.attack)
-    X_adv = attack.generate(x=X, y=y)
+    X_adv = None
+    if cfg.perform_attack:
+        attack = CaFA(estimator=classifier,
+                      **tab_dataset.structure_constraints,
+                      **cfg.attack)
+        X_adv = attack.generate(x=X, y=y)
 
-    evaluations['after-cafa'] = evaluate_crafted_samples(X_adv=X_adv, X_orig=X, y=y, **eval_params)
-    logger.info(f"after-cafa: {evaluations['after-cafa']}")
+        evaluations['after-cafa'] = evaluate_crafted_samples(X_adv=X_adv, X_orig=X, y=y, **eval_params)
+        logger.info(f"after-cafa: {evaluations['after-cafa']}")
 
     # 5. Project
-    if 'constraints' in cfg and cfg.constraints and cfg.perform_projection:
+    if 'constraints' in cfg and cfg.constraints and cfg.perform_projection and X_adv is not None:
         # collect sample projected to numpy array
         X_adv_proj = []
 
