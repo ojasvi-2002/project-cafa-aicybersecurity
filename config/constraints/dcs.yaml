@@ -27,4 +27,4 @@ mining_params:
   # Ranking hyperparameters
   n_dcs_to_eval: 10_000  # number of dcs to evaluate
   n_tuples_to_eval: 1000  # number of samples to evaluate on; also the amount of other tuples to save in the evaluation file
-  n_other_tuples_to_eval: 10_000  # number of other tuples to evaluate
+  n_other_tuples_to_eval: 8_000  # number of other tuples to evaluate

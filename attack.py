@@ -10,6 +10,7 @@ from art.estimators.classification import PyTorchClassifier
 from src.attacks.cafa import CaFA
 from src.constraints.constraint_projector import ConstraintProjector
 from src.constraints.utilizing.constrainer import DCsConstrainer
+from src.constraints.utils import evaluate_soundness_and_completeness
 from src.models.utils import load_trained_model
 from src.utils import evaluate_crafted_samples
 from src.datasets.load_tabular_data import TabularDataset
@@ -77,6 +78,15 @@ def main(cfg: DictConfig) -> None:
             constrainer=constrainer,
             **cfg.constraints.projector_params
         )
+
+        if cfg.perform_constraints_soundness_evaluation:
+            # Evaluate the Soundness and Completeness of the DCs:
+            evaluate_soundness_and_completeness(
+                dataset_name=cfg.data.name,
+                samples_to_eval=tab_dcs_dataset.X_test[:750],
+                idx_to_feature_name=tab_dcs_dataset.feature_names,
+                constrainer=constrainer,
+            )
 
         eval_params.update(dict(constrainer=constrainer, tab_dataset_constrainer=tab_dcs_dataset))
 
