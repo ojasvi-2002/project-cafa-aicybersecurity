@@ -9,7 +9,7 @@ from tqdm import tqdm
 from ast import literal_eval
 import logging
 
-from src.constraints.modeling.dcs_model import DenialConstraint
+from src.constraints.dcs.model_dcs import DenialConstraint
 
 logger = logging.getLogger(__name__)
 

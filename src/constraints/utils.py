@@ -5,7 +5,7 @@ from collections import Counter
 import numpy as np
 from tqdm import tqdm
 
-from src.constraints.utilizing.constrainer import Constrainer
+from src.constraints.dcs.utilize_dcs import Constrainer
 
 logger = logging.getLogger(__name__)
 

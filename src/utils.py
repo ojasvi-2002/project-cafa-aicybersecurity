@@ -1,10 +1,10 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 import numpy as np
 from art.estimators import NeuralNetworkMixin
 
 from src.attacks.cafa import CaFA
-from src.constraints.utilizing.constrainer import Constrainer
+from src.constraints.dcs.utilize_dcs import Constrainer
 from src.datasets.load_tabular_data import TabularDataset
 
 

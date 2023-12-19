@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict
+from typing import Dict
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
@@ -9,12 +9,12 @@ from art.estimators.classification import PyTorchClassifier
 
 from src.attacks.cafa import CaFA
 from src.constraints.constraint_projector import ConstraintProjector
-from src.constraints.utilizing.constrainer import DCsConstrainer
+from src.constraints.dcs.utilize_dcs import DCsConstrainer
 from src.constraints.utils import evaluate_soundness_and_completeness
 from src.models.utils import load_trained_model
 from src.utils import evaluate_crafted_samples
 from src.datasets.load_tabular_data import TabularDataset
-from src.constraints.mining.mine_dcs import mine_dcs
+from src.constraints.dcs.mine_dcs import mine_dcs
 from src.models.mlp import grid_search_hyperparameters, train
 
 logger = logging.getLogger(__name__)

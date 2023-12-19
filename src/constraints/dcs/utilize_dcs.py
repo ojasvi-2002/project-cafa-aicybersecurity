@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-from ast import literal_eval
 from typing import Dict, Tuple, List, Type
 
 import numpy as np
@@ -7,32 +5,9 @@ import pandas as pd
 from tqdm import tqdm
 from z3 import *
 
-from src.constraints.mining.mine_dcs import load_evaluated_dcs
-from src.constraints.modeling.dcs_model import DenialConstraint
-
-
-class Constrainer(ABC):
-    """Abstract class for utilizing constraint set."""
-    @abstractmethod
-    def check_sat(self,
-                  sample: np.ndarray,
-                  **kwargs) -> bool:
-        """Checks whether the sample satisfies the constraints."""
-        pass
-
-    @abstractmethod
-    def project_sample(self,
-                       sample: np.ndarray,
-                       freed_literals: list[int],
-                       **kwargs) -> Tuple[bool, np.ndarray]:
-        """Projects the sample onto the constraints, by freeing the given literals (by indices)."""
-        pass
-
-    @abstractmethod
-    def get_literals_scores(self,
-                            sample: np.ndarray):
-        """The higher the score the more constrained the literal. """
-        pass
+from src.constraints.dcs.mine_dcs import load_evaluated_dcs
+from src.constraints.dcs.model_dcs import DenialConstraint
+from src.constraints import Constrainer
 
 
 class DCsConstrainer(Constrainer):
@@ -141,8 +116,7 @@ class DCsConstrainer(Constrainer):
 
         # Add any additional (e.g., cost) assertions
         additional_assertions = []
-        if self.limit_cost_ball is not None:
-            assert sample_original is not None, "Must provide `sample_original` to limit the cost-ball"
+        if self.limit_cost_ball is not None and sample_original is not None:
             additional_assertions = self._get_cost_ball_assertions(sample_original)
 
         is_sat = self.solver.check(*assignment, *additional_assertions)  # returns satisfiability

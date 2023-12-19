@@ -1,9 +1,34 @@
-import numpy as np
-
-from src.constraints.utilizing.constrainer import Constrainer
+from typing import Tuple
+from abc import ABC, abstractmethod
 import logging
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
+
+
+class Constrainer(ABC):
+    """Abstract class for utilizing constraint set."""
+    @abstractmethod
+    def check_sat(self,
+                  sample: np.ndarray,
+                  **kwargs) -> bool:
+        """Checks whether the sample satisfies the constraints."""
+        pass
+
+    @abstractmethod
+    def project_sample(self,
+                       sample: np.ndarray,
+                       freed_literals: list[int],
+                       **kwargs) -> Tuple[bool, np.ndarray]:
+        """Projects the sample onto the constraints, by freeing the given literals (by indices)."""
+        pass
+
+    @abstractmethod
+    def get_literals_scores(self,
+                            sample: np.ndarray):
+        """The higher the score the more constrained the literal. """
+        pass
 
 
 class ConstraintProjector:
