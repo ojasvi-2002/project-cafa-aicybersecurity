@@ -25,5 +25,6 @@ mining_params:
   path_to_fastadc_miner_jar: 'src/constraints/mining/resources/FastADC-1.0-SNAPSHOT.jar'
 
   # Ranking hyperparameters
-  n_tuples_to_eval: 1500
-  n_dcs_to_eval: 15000
+  n_dcs_to_eval: 10_000  # number of dcs to evaluate
+  n_tuples_to_eval: 1000  # number of samples to evaluate on; also the amount of other tuples to save in the evaluation file
+  n_other_tuples_to_eval: 10_000  # number of other tuples to evaluate

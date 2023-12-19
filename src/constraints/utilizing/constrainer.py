@@ -94,16 +94,15 @@ class DCsConstrainer(Constrainer):
         self.dcs = []
         for i, row in self.dc_constraints_eval.iterrows():
             # Option I - sample the "other" tuples randomly
-            # dc_tuples_data = self.dataset.sample(n=n_tuples_inference, random_state=i)
-            # dc_tuples_data.reset_index(inplace=True)
+            # dc_tuples_data = self.x_tuples_df.sample(n=self.n_tuples, random_state=i)
 
             # Option II - use satisfiability of tuples over evaluated set
             assert self.n_tuples <= len(row.best_other_tuples), \
                 "Tuples used for inference must be <= the 'best-other-tuples' given in the dc_constraints_eval file."
             dc_best_tuples_indices = row.best_other_tuples[:self.n_tuples]
-            dc_tuples_data = self.x_tuples_df.iloc[dc_best_tuples_indices]
+            dc_tuples_data = self.x_tuples_df.loc[dc_best_tuples_indices]  # accessed by 'x_tuples_df.index'
 
-            dc_tuples_data.reset_index(inplace=True)
+            dc_tuples_data = dc_tuples_data.reset_index(drop=True)
             self.dcs.append(DenialConstraint(dc_string=row.dcs_repr, other_tuples_data=dc_tuples_data))
 
     def check_sat(self,
@@ -229,7 +228,7 @@ class DCsConstrainer(Constrainer):
         # 3. enforce the constraints
         literals_dict_named = {f_name: literals_dict[f_idx] for f_idx, f_name in enumerate(self.feature_names)}
         for dc in tqdm(self.dcs, desc='Builds DCs CNF'):
-            s.add(dc.get_z3_formula(literals_dict_named))
+            s.add(*dc.get_z3_formula(literals_dict_named))
 
         return s, literals_dict
 

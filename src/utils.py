@@ -46,6 +46,12 @@ def evaluate_crafted_samples(
             sample_orig = TabularDataset.cast_sample_format(x_orig,
                                                             from_dataset=tab_dataset,
                                                             to_dataset=tab_dataset_constrainer)
+            assert np.all(x_orig ==
+                          TabularDataset.cast_sample_format(sample_orig, from_dataset=tab_dataset_constrainer,
+                                                            to_dataset=tab_dataset))
+            assert np.all(sample_orig ==
+                          TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
+                                                            to_dataset=tab_dataset_constrainer))
             is_comp[idx] = constrainer.check_sat(sample_adv, sample_original=sample_orig)
 
     # Evaluate 'cost' metrics

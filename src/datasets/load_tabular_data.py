@@ -77,7 +77,8 @@ class TabularDataset:
                                                             train_size=train_proportion,
                                                             random_state=random_seed,
                                                             shuffle=True)
-
+        # Save DFs
+        self.X_train_df = X_train
         # Save numpy arrays
         self.X_train, self.X_test, self.y_train, self.y_test = (
             X_train.values.astype(np.float32), X_test.values.astype(np.float32),
@@ -263,10 +264,9 @@ class TabularDataset:
                 oh_group_indices = from_dataset.one_hot_groups_dict[feature_name]
                 oh_category_idx = oh_group_indices[sample[oh_group_indices].argmax()]
                 oh_category = from_dataset.metadata_df.one_hot_encoding[int(oh_category_idx)]
-                oh_category = int(float(oh_category))
 
                 # Update the new sample with the new category-encoding
-                cat_to_enc_label = {cat: enc_label for enc_label, cat in row.encoding_map.items()}
+                cat_to_enc_label = {str(cat): enc_label for enc_label, cat in row.encoding_map.items()}
                 sample_new[f_idx] = cat_to_enc_label[oh_category]
 
             elif (row.type == 'categorical' and
@@ -275,7 +275,7 @@ class TabularDataset:
                 encoding_map_origin = from_dataset.metadata_df[
                     from_dataset.metadata_df.feature_name == feature_name].encoding_map.item()
                 f_idx_in_origin_dataset = (from_dataset.feature_names == feature_name).argmax()
-                encoded_category = encoding_map_origin[sample[f_idx_in_origin_dataset]]
+                encoded_category = str(encoding_map_origin[sample[f_idx_in_origin_dataset]])
 
                 # Update the new one-hot-encoded sample
                 sample_new[f_idx] = int(encoded_category == row.one_hot_encoding)

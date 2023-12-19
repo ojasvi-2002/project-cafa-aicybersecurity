@@ -56,17 +56,18 @@ def main(cfg: DictConfig) -> None:
         mining_source_params = cfg.data.params.copy()
         mining_source_params['encoding_method'] = None  # we set default (label-) encoding for constraint mining
         tab_dcs_dataset = TabularDataset(**mining_source_params)
+        mining_source = tab_dcs_dataset.X_train_df
 
         # [Optionally] Mine the DCs:
         mine_dcs(
-            x_mine_source_df=tab_dcs_dataset.x_df,
+            x_mine_source_df=mining_source,
             x_dcs_col_names=tab_dcs_dataset.x_dcs_col_names,
             **cfg.constraints.mining_params
         )
 
         # Initialize the DCs constrainer:
         constrainer = DCsConstrainer(
-            x_tuples_df=tab_dcs_dataset.x_df,
+            x_tuples_df=mining_source,
             **tab_dcs_dataset.structure_constraints,
             **cfg.constraints.constrainer_params
         )
@@ -130,7 +131,7 @@ def main(cfg: DictConfig) -> None:
         evaluations['after-cafa-projection'] = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
         logger.info(f"after-projection: {evaluations['after-cafa-projection']}")
 
-    logger.info("Finished attack.")
+    logger.info("Finished run.")
     logger.info(evaluations)
 
 

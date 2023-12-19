@@ -24,6 +24,7 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
              approx_violation_threshold: float = 0.01,
              n_tuples_to_eval: int = 750,  # limit the recorded best-other-tuples to 0.75K
              n_dcs_to_eval: int = 10_000,  # limit the number of evaluated DCs to 10K
+             n_other_tuples_to_eval: int = 5000,  # limit the number of evaluated DCs to 10K
 
              # Phases to execute:
              perform_constraints_mining: bool = True,
@@ -47,6 +48,7 @@ def mine_dcs(x_mine_source_df: pd.DataFrame,
             dcs=dcs,
             n_tuples_to_eval=n_tuples_to_eval,
             n_dcs_to_eval=n_dcs_to_eval,
+            n_other_tuples_to_eval=n_other_tuples_to_eval,
         )
         evaluated_dcs.to_csv(evaluated_dcs_out_path, index=False)
 
@@ -85,7 +87,8 @@ def load_dcs_from_txt(dcs_txt_path: str) -> List[DenialConstraint]:
 def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
                       dcs: List[DenialConstraint],
                       n_dcs_to_eval: int = 10_000,
-                      n_tuples_to_eval: int = 750):
+                      n_other_tuples_to_eval: int = 5000,
+                      n_tuples_to_eval: int = 1000):
     """
     :param x_tuples_df: DataFrame with data tuples to evaluate on. These tuples will play the role of main tuple
                         (in the pair).
@@ -93,7 +96,8 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     :param dcs: list with DC objects to evaluate.
                 We assume that all DCs have the same size of `dc.data_tuple` (denoted `n_other_data_tuples`)
     :param n_dcs_to_eval: amount of DC to evaluate (evaluate the `n_dcs` most succinctness DCs)
-    :param n_tuples_to_eval: How many of the best"other_tuples" should we keep for each DC.
+    :param n_other_tuples_to_eval: amount of 'other' tuples to consider as candidates for 'best' tuples of each DC.
+    :param n_tuples_to_eval: Amount of samples on which we perform the evaluation on
     :return: prints and saves evaluation CSV.
     """
     # Trim DC as requested, by _Succinctness_ - measure the length of each DC  (the closer it is to 1,
@@ -112,13 +116,15 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
         _dc_sizes = [dc.get_predicate_count() for dc in dcs]
         succinctness_per_dc = _min_dc_size / np.array(_dc_sizes)
 
-    x_tuples_df = x_tuples_df[:n_tuples_to_eval].copy()
-
     # Set the 'other-tuples' data for each DC
+    x_other_tuples_df = x_tuples_df[:n_other_tuples_to_eval].copy()  # takes the tuples for `others` from the beginning
     for dc in dcs:
-        dc.set_other_tuples_data(x_tuples_df)
+        dc.set_other_tuples_data(x_other_tuples_df)
 
-    logger.info(f"Evaluating {len(dcs)=}, `t` from {len(x_tuples_df)=} and `t'` from {len(x_tuples_df)=}")
+    x_tuples_to_eval_df = x_tuples_df[-n_tuples_to_eval:].copy()  # takes the tuples to evaluate with from the end
+    # Note: each operation on x_tuples_df should keep the original indices of the DataFrame (as they are used later).
+
+    logger.info(f"Evaluating {len(dcs)=}, `t` from {len(x_tuples_to_eval_df)=} and `t'` from {len(x_other_tuples_df)=}")
 
     # Metric I (g_1): for each DC we calculate the violation rate (over all the possible pairs)
     ##      [Analogue to f_1 from Livshits et al. 2021 / g_1 in FastADC]
@@ -136,9 +142,9 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     best_other_tuples_per_dc = np.zeros((len(dcs), n_tuples_to_eval), dtype=int)
 
     for dc_idx, dc in tqdm(enumerate(dcs), desc="Evaluating DCs..."):
-        dc_sat_per_other_tuples = np.zeros(n_tuples_to_eval, dtype=int)
-        for idx1 in range(len(x_tuples_df)):  # iterate on t (main tuple)
-            is_sat_arr, sat_predicates_count_arr = dc.check_satisfaction_all_pairs(x_tuples_df.iloc[idx1].to_dict())
+        dc_sat_per_other_tuples = np.zeros(n_other_tuples_to_eval, dtype=int)
+        for idx1, row in x_tuples_to_eval_df.iterrows():  # iterate on t (main tuple)
+            is_sat_arr, sat_predicates_count_arr = dc.check_satisfaction_all_pairs(row.to_dict())
 
             # Track the sat of tuples playing the "other-tuple" role
             dc_sat_per_other_tuples += is_sat_arr.values
@@ -152,11 +158,11 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
                 # aggregates the satisfied-predicates spotted in the `dc` with `idx1`.
                 sat_pred_count_per_dc[dc_idx, int(dc_pred_count_idx)] += dc_pred_count_val
 
-        best_other_tuples_per_dc[dc_idx] = dc_sat_per_other_tuples.argsort()[-n_tuples_to_eval:][::-1]
-        logger.info(f"dc_idx >> {dc_sat_per_other_tuples.min()} {dc_sat_per_other_tuples.max()}")
+        best_other_tuples_per_dc[dc_idx] = dc.other_tuples_data.index[dc_sat_per_other_tuples.argsort()[-n_tuples_to_eval:][::-1]].values
+        logger.info(f"{dc_idx} >> {dc_sat_per_other_tuples.min()} {dc_sat_per_other_tuples.max()}")
 
     # Normalize metrics
-    pairs_violation_rate_per_dc /= n_tuples_to_eval * n_tuples_to_eval  # normalize by number of pairs
+    pairs_violation_rate_per_dc /= n_other_tuples_to_eval * n_tuples_to_eval  # normalize by number of evaluated pairs
     tuple_violation_rate_per_dc /= n_tuples_to_eval
     # Calculate coverage
     w = (np.arange(sat_pred_count_per_dc.shape[-1]) + 1) / sat_pred_count_per_dc.shape[-1]
@@ -175,7 +181,7 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     logger.info(f">> Worst DC, with {pairs_violation_rate_per_dc.max() * 100}% sat-rate was : "
           f"{dcs[pairs_violation_rate_per_dc.argmax()]}")
 
-    # Save metrics:
+    # Transform metrics to a DF
     dc_constraints_eval = pd.DataFrame({
         'dcs_file_idx': [dc.dc_file_idx for dc in dcs],
         'dcs_repr': [str(dc) for dc in dcs],  # from which the DC can be reproduced
@@ -183,8 +189,9 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
         'tuple_violation_rate_per_dc': tuple_violation_rate_per_dc,
         'succinctness_per_dc': succinctness_per_dc,
         'coverage_per_dc': coverage_per_dc,
-        'best_other_tuples': [json.dumps(lst) for lst in best_other_tuples_per_dc.tolist()],
+
         # list of the tuples with highest sat-rate in their role as 'other tuple' in the DC.
+        'best_other_tuples': [json.dumps(lst) for lst in best_other_tuples_per_dc.tolist()],
     })
 
     # filter DCs by their 'interesting-ness' ranking form a weighted-score of the metrics
@@ -209,7 +216,6 @@ def eval_and_rank_dcs(x_tuples_df: pd.DataFrame,
     for col_name, weight in col_to_weight.items():
         dc_constraints_eval['weighted_score'] += weight * dc_constraints_eval[col_name]
 
-    # Re-Save 'dc_constraints_eval'
     return dc_constraints_eval
 
 
