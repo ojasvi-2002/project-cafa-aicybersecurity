@@ -6,6 +6,7 @@ import hydra
 import torch
 import numpy as np
 from art.estimators.classification import PyTorchClassifier
+from tqdm import tqdm
 
 from src.attacks.cafa import CaFA
 from src.constraints.constraint_projector import ConstraintProjector
@@ -112,7 +113,7 @@ def main(cfg: DictConfig) -> None:
         # collect sample projected to numpy array
         X_adv_proj = []
 
-        for x_orig, x_adv in zip(X, X_adv):  # for validation
+        for x_orig, x_adv in tqdm(zip(X, X_adv), desc="Projecting crafted samples onto constraints."):  # for validation
 
             # 5.A. Transform sample to the format of the DCs dataset
             sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,

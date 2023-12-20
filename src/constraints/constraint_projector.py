@@ -90,7 +90,7 @@ class ConstraintProjector:
         else:
             n_phi, is_sat, projected_sample = upper_phi, upper_phi_sat, upper_projected_sample
 
-        logger.info(f"Projection was {'successful' if is_sat else 'failed'} with budget={n_phi}")
+        logger.debug(f"Projection was {'successful' if is_sat else 'failed'} with budget={n_phi}")
 
         return is_sat, projected_sample
 
