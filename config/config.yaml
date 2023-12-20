@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - data: bank  # dataset to run on
+  - data: phishing  # dataset to run on
   - ml_model:  mlp  # model to attack
   - attack: cafa  # attack to run
   - constraints: dcs  # constraints to use; if not shown we don't integrate constraints, which also means we skip projection.

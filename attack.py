@@ -61,6 +61,7 @@ def main(cfg: DictConfig) -> None:
             **cfg.constraints.mining_params
         )
 
+        logger.info("Initializing constraint set and projector for the attack.")
         # Initialize the DCs constrainer:
         constrainer = DCsConstrainer(
             x_tuples_df=mining_source,
@@ -76,9 +77,10 @@ def main(cfg: DictConfig) -> None:
 
         if cfg.perform_constraints_soundness_evaluation:
             # Evaluate the Soundness and Completeness of the DCs:
+            logger.info("Evaluating the quality of the DCs.")
             evaluate_soundness_and_completeness(
                 dataset_name=cfg.data.name,
-                samples_to_eval=tab_dcs_dataset.X_test[:750],
+                samples_to_eval=tab_dcs_dataset.X_test[:1500],
                 idx_to_feature_name=tab_dcs_dataset.feature_names,
                 constrainer=constrainer,
             )
@@ -95,6 +97,7 @@ def main(cfg: DictConfig) -> None:
     # 4. Attack:
     X_adv = None
     if cfg.perform_attack:
+        logger.info("Executing CaFA attack.")
         attack = CaFA(estimator=classifier,
                       **tab_dataset.structure_constraints,
                       **cfg.attack)
@@ -105,6 +108,7 @@ def main(cfg: DictConfig) -> None:
 
     # 5. Project
     if 'constraints' in cfg and cfg.constraints and cfg.perform_projection and X_adv is not None:
+        logger.info("Executing projection of the crafted samples onto the constrained space.")
         # collect sample projected to numpy array
         X_adv_proj = []
 
@@ -114,14 +118,6 @@ def main(cfg: DictConfig) -> None:
             sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
                                                             to_dataset=tab_dcs_dataset)
             sample_adv = TabularDataset.cast_sample_format(x_adv, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
-
-            # 5.A.1. Sanity checks:
-            assert np.all(x_orig ==
-                          TabularDataset.cast_sample_format(sample_orig, from_dataset=tab_dcs_dataset,
-                                                            to_dataset=tab_dataset))
-            assert np.all(sample_orig ==
-                          TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
-                                                            to_dataset=tab_dcs_dataset))
 
             # 5.B. Project
             is_succ, sample_projected = projector.project(sample_adv, sample_original=sample_orig)
@@ -136,8 +132,9 @@ def main(cfg: DictConfig) -> None:
         evaluations['after-cafa-projection'] = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
         logger.info(f"after-projection: {evaluations['after-cafa-projection']}")
 
-    logger.info("Finished run.")
-    logger.info(evaluations)
+    # 6. Log evaluations:
+    logger.info(f"Evaluations: {evaluations}")
+    logger.info(f"Finished run. results saved in {hydra.core.hydra_config.HydraConfig.get().runtime.output_dir}")
 
 
 if __name__ == "__main__":

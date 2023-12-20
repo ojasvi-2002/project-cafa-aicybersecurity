@@ -259,7 +259,7 @@ class CaFA(EvasionAttack):
             # 8. Early stop who are already adversarial
             x_adv = x_adv.astype(np.float32)
             is_attack_success = self.estimator.predict(x_adv).argmax(axis=1) != y
-            logger.info(f"ASR: {is_attack_success.mean() * 100: .2f}%")
+            logger.debug(f"ASR: {is_attack_success.mean() * 100: .2f}%")
             allow_updates -= allow_updates * is_attack_success
 
             # 9. Track attack metrics # TODO [ADD-FEATURE] implement a step-wise tracker (e.g., summary writer)

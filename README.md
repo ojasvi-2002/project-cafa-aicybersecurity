@@ -2,9 +2,8 @@
 # Adversarial Example Attacks on Tabular Data
 The official repository of [Cost aware Feasible Attack (CaFA) on Tabular Data](TODO-LINK). It provides a modular, clean and 
 accessible implementation of CaFA and its variants, complying with [Adversarial Robustness Toolbox framework](https://github.com/Trusted-AI/adversarial-robustness-toolbox/tree/main). 
-Thus, it allows: transparity of technical details of our work, 
-reproduction of major experiments in the paper, extension of the work, 
-and utilizing the attack for practical means (e.g., evaluation of models).
+Thus, it allows: transparency of technical details of our work, extension of the work, 
+reproduction of major experiments in the paper, and utilizing the attack for practical means (e.g., evaluation of models).
 
 <div align="center">
 <img width="600" src="docs/tabular-attack-example-unified.png">
@@ -23,6 +22,8 @@ portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/
 learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3))
 
 
+## Demo
+[TODO DEMO NOTEBOOK IN COLLAB]
 
 ## Setup
 The project requires `Python 3.8` and on, and `Java 11` and on (to run `FastADC`). Additionally, 
@@ -40,6 +41,8 @@ These components include:
 - `attack`: the attack's (CaFA) parameters. 
 - `constraints`: the specification of the utilized constraints, their mining process and whether to incorporate 
 projection; in this these are Denial Constraints.
+
+[TODO additional entry points?]
 
 
 ## Datasets
