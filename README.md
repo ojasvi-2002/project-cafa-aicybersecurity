@@ -34,7 +34,10 @@ To run the attack use:
 ```bash
 python attack.py data=<dataset_name>
 ```
-The attack's components can be enabled/disabled/modify through the configuration dir (`config/`). 
+Where `<dataset_name>` is one of the datasets listed in the `data/` dir (which can be enriched).
+
+The attack's components can be enabled/disabled/modify through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [override](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
+CLI.
 These components include:
 - `data`: the dataset to preprocess, train on, attack and mine constraints from.
 - `ml_model`: the ML model to load/train and target as part of the attack.
