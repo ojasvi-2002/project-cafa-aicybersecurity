@@ -2,7 +2,7 @@
 # Adversarial Example Attacks on Tabular Data
 The official repository of [Cost aware Feasible Attack (CaFA) on Tabular Data](TODO-LINK). It provides a modular, clean and 
 accessible implementation of CaFA and its variants, complying with [Adversarial Robustness Toolbox framework](https://github.com/Trusted-AI/adversarial-robustness-toolbox/tree/main). 
-Thus, it allows: transparency of technical details of our work, extension of the work, 
+Thus, it allows: transparency of technical details of our work, future extension of the work, 
 reproduction of major experiments in the paper, and utilizing the attack for practical means (e.g., evaluation of models).
 
 <div align="center">
@@ -13,12 +13,12 @@ reproduction of major experiments in the paper, and utilizing the attack for pra
 CaFA is an _Adversarial Example_ attack, suited for tabular data. That is, given a set of samples and a classification 
 ML-model, CaFA crafts malicious inputs--based on the original ones--that are misclassified by the model.
 
-CaFA is composed on 3 main logical components:
-1. **Mine:** employing a constraints mining algorithm (we use [FastADC](https://github.com/RangerShaw/FastADC) and our own ranking scheme) on a 
+CaFA is composed of 3 main logical components:
+1. **Mine:** employing a constraints mining algorithm (we use [FastADC](https://github.com/RangerShaw/FastADC) and our ranking scheme) on a 
 portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/10.14778/2536258.2536262).
 2. **Peturb:** attacking the model with *TabPGD* (a [PGD](https://arxiv.org/abs/1706.06083) variation we propose to attack tabular data) and *TabCWL0*
 (a variation of [Carlini-Wagner](https://arxiv.org/abs/1608.04644)'s attack) to craft adversarial examples under structure constraints and cost limitations.
-3. **Project:** the crafted samples are then projected onto the constrained space embodied by the constraints 
+3. **Project:** The crafted samples are then projected onto the constrained space embodied by the constraints 
 learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3))
 
 
