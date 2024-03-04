@@ -1,5 +1,7 @@
+import json
 import logging
 from typing import Dict
+import os
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
     logger.info(f"Used config: {OmegaConf.to_yaml(cfg)}")
+    output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
 
     # 1. Process data:
     tab_dataset = TabularDataset(**cfg.data.params)
@@ -93,6 +96,8 @@ def main(cfg: DictConfig) -> None:
     evaluations: Dict[str, Dict[str, float]] = {}
 
     evaluations['before-attack'] = evaluate_crafted_samples(X_adv=X, X_orig=X, y=y, **eval_params)
+    np.save(os.path.join(output_dir, "X.npy"), X)
+    np.save(os.path.join(output_dir, "Y.npy"), y)
     logger.info(f"before-attack: {evaluations['before-attack']}")
 
     # 4. Attack:
@@ -105,6 +110,7 @@ def main(cfg: DictConfig) -> None:
         X_adv = attack.generate(x=X, y=y)
 
         evaluations['after-cafa'] = evaluate_crafted_samples(X_adv=X_adv, X_orig=X, y=y, **eval_params)
+        np.save(os.path.join(output_dir, "X_adv.npy"), X_adv)
         logger.info(f"after-cafa: {evaluations['after-cafa']}")
 
     # 5. Project
@@ -131,11 +137,14 @@ def main(cfg: DictConfig) -> None:
         X_adv_proj = np.array(X_adv_proj)
 
         evaluations['after-cafa-projection'] = evaluate_crafted_samples(X_adv=X_adv_proj, X_orig=X, y=y, **eval_params)
+        np.save(os.path.join(output_dir, "X_adv_proj.npy"), X_adv_proj)
         logger.info(f"after-projection: {evaluations['after-cafa-projection']}")
 
-    # 6. Log evaluations:
+    # 6. Log & save evaluations:
     logger.info(f"Evaluations: {evaluations}")
-    logger.info(f"Finished run. results saved in {hydra.core.hydra_config.HydraConfig.get().runtime.output_dir}")
+    with open(os.path.join(output_dir, "evaluations.json"), "w") as f:
+        json.dump(evaluations, f, indent=4)
+    logger.info(f"Finished run. results saved in {output_dir}")
 
 
 if __name__ == "__main__":

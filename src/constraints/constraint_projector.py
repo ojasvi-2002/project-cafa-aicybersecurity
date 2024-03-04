@@ -118,7 +118,7 @@ class ConstraintProjector:
             literals_to_free = np.random.choice(len(literals_scores), size=n_free_literals, replace=False)
         else:
             # TODO make sure the following line is printed occasionally (otherwise, inspect the score system)
-            print("sometimes the literals cost differ!", literals_scores)
+            logger.debug("sometimes the literals cost differ!", literals_scores)
 
         # TODO [currently disabled] consider a softmax option (with `p=softmax(-literals_scores))`)
         # temp_factor = 1  # the lower - the more uniform (0 -> uniform)

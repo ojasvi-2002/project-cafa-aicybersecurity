@@ -219,7 +219,7 @@ class DCsConstrainer(Constrainer):
             original_val = sample_original[f_idx]
             lower = original_val - (self.cost_ball_eps * self.standard_factors[f_idx])
             upper = original_val + (self.cost_ball_eps * self.standard_factors[f_idx])
-            if self.is_feature_ordinal[f_idx]:  # we round ball for integers
+            if self.is_feature_ordinal[f_idx]:  # we round ball for integers, to slightly relax this requirement
                 lower, upper = math.floor(lower), math.ceil(upper)
             lower, upper = float(lower), float(upper)
             if lower == -np.inf: lower = -2 ** 32
