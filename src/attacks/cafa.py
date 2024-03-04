@@ -343,10 +343,10 @@ class CaFA(EvasionAttack):
 
     def _init_epsilon_ball(self, x: np.ndarray) -> (np.ndarray, np.ndarray):
         epsilon_ball_upper = x + (self.eps * self.standard_factors)
-        epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
+        # epsilon_ball_upper[:, self.ordinal_indices] = np.ceil(epsilon_ball_upper[:, self.ordinal_indices])
 
         epsilon_ball_lower = x - (self.eps * self.standard_factors)
-        epsilon_ball_lower[:, self.ordinal_indices] = np.floor(epsilon_ball_lower[:, self.ordinal_indices])
+        # epsilon_ball_lower[:, self.ordinal_indices] = np.floor(epsilon_ball_lower[:, self.ordinal_indices])
 
         if self.cat_encoding_method == 'one_hot_encoding':
             # in case of one-hot-encoding we simply allow perturbation of all categories
