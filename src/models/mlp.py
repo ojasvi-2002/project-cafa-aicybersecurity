@@ -150,9 +150,10 @@ def train(
     # Define callbacks:
     callbacks = []
     # defines checkpointing at the end of each epoch, saving the max-validation-metric model
-    callbacks.append(ModelCheckpoint(monitor="val_hp_metric", mode="max",
-                                     filename='{epoch}-{val_hp_metric:.3f}'
-                                     ))
+    callbacks.append(
+        ModelCheckpoint(monitor="val_hp_metric", mode="max",
+                        filename='{epoch}-{val_hp_metric:.3f}')
+    )
 
     if additional_callbacks is not None:
         callbacks += additional_callbacks

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_trained_model(saved_model_path, model_type='mlp',
-                       dataset=None):
+                       dataset=None, eval_mode=True):
     """
     Loads the required model from the saved models directory
     """
@@ -25,5 +25,9 @@ def load_trained_model(saved_model_path, model_type='mlp',
     else:
         raise NotImplementedError(f"Unknown model type: {model_type}")
 
+    if eval_mode:
+        model.eval()
+        for param in model.parameters():
+            param.requires_grad = False
     return model
 

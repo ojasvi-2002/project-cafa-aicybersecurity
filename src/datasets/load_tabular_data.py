@@ -1,3 +1,4 @@
+import random
 from typing import List, Dict, Type
 import ast
 import logging
@@ -92,21 +93,37 @@ class TabularDataset:
         # Validate the processed input data
         self._validate_input()
 
-    @property
-    def trainset(self) -> torch.utils.data.Dataset:
+    def get_train_dev_sets(self, dev_set_proportion: float = 0.15):
+        """Splits the original training set, into a new training set and a development set; to be used for training."""
+        random.seed(self.data_parameters['random_seed'])
+        heldout_indices = random.sample(range(len(self.X_train)), int(len(self.X_train) * dev_set_proportion))
+        heldin_indices = [i for i in range(len(self.X_train)) if i not in heldout_indices]
         trainset = torch.utils.data.TensorDataset(
-            torch.tensor(self.X_train, dtype=torch.float32),
-            torch.tensor(self.y_train, dtype=torch.long)
+            torch.tensor(self.X_train[heldin_indices], dtype=torch.float32),
+            torch.tensor(self.y_train[heldin_indices], dtype=torch.long)
         )
-        return trainset
+        devset = torch.utils.data.TensorDataset(
+            torch.tensor(self.X_train[heldout_indices], dtype=torch.float32),
+            torch.tensor(self.y_train[heldout_indices], dtype=torch.long)
+        )
+        return trainset, devset
 
-    @property
-    def testset(self) -> torch.utils.data.Dataset:
-        testset = torch.utils.data.TensorDataset(
-            torch.tensor(self.X_test, dtype=torch.float32),
-            torch.tensor(self.y_test, dtype=torch.long)
-        )
-        return testset
+    # [DISABLED] was replaced with `get_train_dev_sets()`
+    # @property
+    # def trainset(self) -> torch.utils.data.Dataset:
+    #     trainset = torch.utils.data.TensorDataset(
+    #         torch.tensor(self.X_train, dtype=torch.float32),
+    #         torch.tensor(self.y_train, dtype=torch.long)
+    #     )
+    #     return trainset
+    #
+    # @property
+    # def testset(self) -> torch.utils.data.Dataset:
+    #     testset = torch.utils.data.TensorDataset(
+    #         torch.tensor(self.X_test, dtype=torch.float32),
+    #         torch.tensor(self.y_test, dtype=torch.long)
+    #     )
+    #     return testset
 
     @property
     def structure_constraints(self):

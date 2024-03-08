@@ -30,15 +30,16 @@ def main(cfg: DictConfig) -> None:
 
     # 1. Process data:
     tab_dataset = TabularDataset(**cfg.data.params)
+    trainset, devset = tab_dataset.get_train_dev_sets(dev_set_proportion=0.15)
 
     # 2. Load model; optionally, re-train before:
     if cfg.ml_model.perform_training or cfg.ml_model.perform_grid_search_hparams:
         best_hparams = cfg.ml_model.default_hparams
         if cfg.ml_model.perform_grid_search_hparams:
-            best_hparams = grid_search_hyperparameters(trainset=tab_dataset.trainset,
-                                                       testset=tab_dataset.testset,
+            best_hparams = grid_search_hyperparameters(trainset=trainset,
+                                                       testset=devset,
                                                        tab_dataset=tab_dataset)
-        train(best_hparams, trainset=tab_dataset.trainset, testset=tab_dataset.testset, tab_dataset=tab_dataset,
+        train(best_hparams, trainset=trainset, testset=devset, tab_dataset=tab_dataset,
               model_artifact_path=cfg.ml_model.model_artifact_path)
     model = load_trained_model(cfg.ml_model.model_artifact_path, model_type=cfg.ml_model.model_type)
 
@@ -93,6 +94,8 @@ def main(cfg: DictConfig) -> None:
 
     # 5. Evaluate before the attack:
     X, y = tab_dataset.X_test[:cfg.n_samples_to_attack], tab_dataset.y_test[:cfg.n_samples_to_attack]
+    if cfg.data_split_to_attack == 'train':
+        X, y = tab_dataset.X_train[:cfg.n_samples_to_attack], tab_dataset.y_train[:cfg.n_samples_to_attack]
     evaluations: Dict[str, Dict[str, float]] = {}
 
     evaluations['before-attack'] = evaluate_crafted_samples(X_adv=X, X_orig=X, y=y, **eval_params)
