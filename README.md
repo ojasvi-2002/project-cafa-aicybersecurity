@@ -2,8 +2,7 @@
 # Adversarial Example Attacks on Tabular Data
 The official repository of [Cost aware Feasible Attack (CaFA) on Tabular Data](TODO-LINK). It provides a modular, clean and 
 accessible implementation of CaFA and its variants, complying with [Adversarial Robustness Toolbox framework](https://github.com/Trusted-AI/adversarial-robustness-toolbox/tree/main). 
-Thus, it allows: transparency of technical details of our work, future extension of the work, 
-reproduction of major experiments in the paper, and utilizing the attack for practical means (e.g., evaluation of models).
+Thus, it allows: transparency of technical details of our work, future extension of the work and utilizing the attack for practical means (e.g., evaluation of models).
 
 <div align="center">
 <img width="600" src="docs/tabular-attack-example-unified.png">
@@ -16,10 +15,10 @@ ML-model, CaFA crafts malicious inputs--based on the original ones--that are mis
 CaFA is composed of 3 main logical components:
 1. **Mine:** employing a constraints mining algorithm (we use [FastADC](https://github.com/RangerShaw/FastADC) and our ranking scheme) on a 
 portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/10.14778/2536258.2536262).
-2. **Peturb:** attacking the model with *TabPGD* (a [PGD](https://arxiv.org/abs/1706.06083) variation we propose to attack tabular data) and *TabCWL0*
+2. **Perturb:** attacking the model with *TabPGD* (a [PGD](https://arxiv.org/abs/1706.06083) variation we propose to attack tabular data) and *TabCWL0*
 (a variation of [Carlini-Wagner](https://arxiv.org/abs/1608.04644)'s attack) to craft adversarial examples under structure constraints and cost limitations.
 3. **Project:** The crafted samples are then projected onto the constrained space embodied by the constraints 
-learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3))
+learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3)).
 
 
 ## Demo
@@ -36,7 +35,7 @@ python attack.py data=<dataset_name>
 ```
 Where `<dataset_name>` is one of the datasets listed in the `data/` dir (which can be enriched).
 
-The attack's components can be enabled/disabled/modify through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [override](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
+The attack's components can be enabled/disabled/modified through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [override](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
 CLI.
 These components include:
 - `data`: the dataset to preprocess, train on, attack and mine constraints from.
@@ -54,6 +53,7 @@ We evaluate on three commonly used tabular datasets:
 [Bank Marketing](https://archive.ics.uci.edu/dataset/222/bank+marketing), and
 [Phishing Websites](https://archive.ics.uci.edu/ml/datasets/phishing+websites). 
 
+Additional tabular datasets can be added following the same structure and format as the existing ones; that is, it is requried to provide the attack with the data itself, its structure and optionally the mined constraints (see: `config/data/`). 
 
 
 ## Citation
