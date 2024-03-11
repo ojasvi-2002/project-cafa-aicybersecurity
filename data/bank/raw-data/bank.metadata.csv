@@ -8,6 +8,6 @@ pdays,ordinal,"[0,'inf']",integer
 campaign,ordinal,"[0,'inf']",integer
 contact,categorical,,string
 previous,ordinal,"[0,300]",integer
-education,ordinal,"[0,3]",integer
+education,categorical,"[0,3]",integer
 marital,categorical,,string
 y,label,,
