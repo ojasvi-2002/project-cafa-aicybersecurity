@@ -2,7 +2,7 @@
 # Adversarial Example Attacks on Tabular Data
 The official repository of [Cost aware Feasible Attack (CaFA) on Tabular Data](TODO-LINK). It provides a modular, clean and 
 accessible implementation of CaFA and its variants, complying with [Adversarial Robustness Toolbox framework](https://github.com/Trusted-AI/adversarial-robustness-toolbox/tree/main). 
-Thus, it allows: transparency of technical details of our work, future extension of the work and utilizing the attack for practical means (e.g., evaluation of models).
+Thus, it allows: transparency of technical details of our work, future extension of the work and utilizing the attack for practical means (e.g., evaluation of models' robustness).
 
 <div align="center">
 <img width="600" src="docs/tabular-attack-example-unified.png">
@@ -20,10 +20,6 @@ portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/
 3. **Project:** The crafted samples are then projected onto the constrained space embodied by the constraints 
 learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3)).
 
-
-## Demo
-[TODO DEMO NOTEBOOK IN COLLAB]
-
 ## Setup
 The project requires `Python 3.8` and on, and `Java 11` and on (to run `FastADC`). Additionally, 
 the installation of `pip install -r requirements.txt` is required (preferably in an isolated `venv`).
@@ -35,7 +31,7 @@ python attack.py data=<dataset_name>
 ```
 Where `<dataset_name>` is one of the datasets listed in the `data/` dir (which can be enriched).
 
-The attack's components can be enabled/disabled/modified through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [override](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
+The attack's components can be enabled/disabled/modified through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [overriden](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
 CLI.
 These components include:
 - `data`: the dataset to preprocess, train on, attack and mine constraints from.
@@ -43,8 +39,6 @@ These components include:
 - `attack`: the attack's (CaFA) parameters. 
 - `constraints`: the specification of the utilized constraints, their mining process and whether to incorporate 
 projection; in this these are Denial Constraints.
-
-[TODO additional entry points?]
 
 
 ## Datasets
@@ -57,7 +51,15 @@ Additional tabular datasets can be added following the same structure and format
 
 
 ## Citation
-[TODO]
+If you use this code in your research, please cite our paper:
+```
+@article{TODO,
+  title={Cost aware Feasible Attack (CaFA) on Tabular Data},
+  author={TODO},
+  journal={TODO},
+  year={TODO}
+}
+```
 
 ## License
-[TODO?]
+`attack-tabular` repository is licensed under the [MIT License](LICENSE).
