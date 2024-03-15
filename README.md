@@ -5,7 +5,7 @@ accessible implementation of CaFA and its variants, complying with [Adversarial 
 Thus, it allows: transparency of technical details of our work, future extension of the work and utilizing the attack for practical means (e.g., evaluation of models' robustness).
 
 <div align="center">
-<img width="600" src="docs/tabular-attack-example-unified.png">
+<img width="500" src="docs/tabular-attack-example.png">
 </div>
 
 ## What is CaFA?
