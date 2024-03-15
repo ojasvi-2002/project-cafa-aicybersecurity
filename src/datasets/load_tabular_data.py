@@ -20,7 +20,6 @@ dataset_name_to_preprocess_func = {
 }
 
 
-# TODO should reconsider properties that are not used / can be merged
 class TabularDataset:
     """
     Class for processing tabular datasets, as well as holding these and exposing relevant properties for
@@ -107,23 +106,6 @@ class TabularDataset:
             torch.tensor(self.y_train[heldout_indices], dtype=torch.long)
         )
         return trainset, devset
-
-    # [DISABLED] was replaced with `get_train_dev_sets()`
-    # @property
-    # def trainset(self) -> torch.utils.data.Dataset:
-    #     trainset = torch.utils.data.TensorDataset(
-    #         torch.tensor(self.X_train, dtype=torch.float32),
-    #         torch.tensor(self.y_train, dtype=torch.long)
-    #     )
-    #     return trainset
-    #
-    # @property
-    # def testset(self) -> torch.utils.data.Dataset:
-    #     testset = torch.utils.data.TensorDataset(
-    #         torch.tensor(self.X_test, dtype=torch.float32),
-    #         torch.tensor(self.y_test, dtype=torch.long)
-    #     )
-    #     return testset
 
     @property
     def structure_constraints(self):

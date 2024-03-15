@@ -102,7 +102,7 @@ class DenialConstraint:
         self.other_tuples_data = other_tuples_data
 
     def __repr__(self):
-        return self.dc_string  # TODO build string from predicates
+        return self.dc_string
 
     @lru_cache(maxsize=None)
     def does_given_feature_sat_dc(self, feature_name: str, feature_val, **kwargs) -> np.array:

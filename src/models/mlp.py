@@ -162,14 +162,14 @@ def train(
     trainer = pl.Trainer(
         max_epochs=100,
         callbacks=callbacks,
-        default_root_dir=f"outputs/training/mlps/{tab_dataset.data_parameters['dataset_name']}/",  # TODO configurable
+        default_root_dir=f"outputs/training/mlps/{tab_dataset.data_parameters['dataset_name']}/",
 
         # Default configs:
         # accelerator="auto",
         # devices="auto",
         # logger=True, # tensorboard if available, otherwise csv
     )
-    trainer.logger.log_hyperparams(hyperparameters)  # TODO also save `tab_dataset.data_parameters` for reproducibility
+    trainer.logger.log_hyperparams(hyperparameters)
     trainer.fit(model, train_dataloaders=trainloader, val_dataloaders=testloader)
 
     results = {

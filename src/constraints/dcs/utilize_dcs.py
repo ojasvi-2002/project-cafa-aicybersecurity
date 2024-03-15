@@ -169,7 +169,7 @@ class DCsConstrainer(Constrainer):
             # Option I: simply choose random features
             # features_sat[f_idx] = np.random.rand()  # disabled
 
-            # TODO can make it parallel to accelerate projection
+            # TODO [ENHANCE-RUNTIME] can make it parallel to accelerate projection
             # Option II: rank feature by its ability to satisfy _alone_ DCs.
             for i, dc in enumerate(self.dcs):
                 feature_name = self.feature_names[f_idx]

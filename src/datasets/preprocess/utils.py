@@ -11,7 +11,7 @@ def _add_one_hot_encoding(df: pd.DataFrame, metadata_df: pd.DataFrame) -> (pd.Da
     # list the features to one-hot-encode
     cat_features = metadata_df[metadata_df.type == 'categorical'].feature_name.to_list()
 
-    # TODO add avoid one-hot encoding binary features
+    # TODO [OPTIONAL] consider avoiding one-hot encoding binary features
     # cats_to_one_hot = []
     # for cat_feature in cat_features:
     #     if df[cat_feature].nunique() > 2:

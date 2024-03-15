@@ -116,13 +116,6 @@ class ConstraintProjector:
         if len(np.unique(literals_scores)) == 1:
             # Sample from the top `n_free_literals` literals to free, in case of tie
             literals_to_free = np.random.choice(len(literals_scores), size=n_free_literals, replace=False)
-        else:
-            # TODO make sure the following line is printed occasionally (otherwise, inspect the score system)
-            logger.debug("sometimes the literals cost differ!", literals_scores)
-
-        # TODO [currently disabled] consider a softmax option (with `p=softmax(-literals_scores))`)
-        # temp_factor = 1  # the lower - the more uniform (0 -> uniform)
-        # softmax = lambda x: np.exp(temp_factor * x) / np.sum(np.exp(temp_factor * x))
 
         # 2. Attempt to project the sample
         is_projection_succ, projected_sample = self.constrainer.project_sample(sample, literals_to_free,
