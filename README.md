@@ -53,11 +53,11 @@ Additional tabular datasets can be added following the same structure and format
 ## Citation
 If you use this code in your research, please cite our paper:
 ```
-@article{TODO,
-  title={Cost aware Feasible Attack (CaFA) on Tabular Data},
-  author={TODO},
-  journal={TODO},
-  year={TODO}
+@inproceedings{BenTov24CaFA,
+  title={{CaFA}: {C}ost-aware, Feasible Attacks With Database Constraints Against Neural Tabular Classifiers},
+  author={Ben-Tov, Matan and Deutch, Daniel and Frost, Nave and Sharif, Mahmood},
+  booktitle={Proceedings of the 45th IEEE Symposium on Security and Privacy (S&P)},
+  year={2024}
 }
 ```
 
