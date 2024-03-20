@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 from abc import ABC, abstractmethod
 import logging
 
@@ -19,7 +19,7 @@ class Constrainer(ABC):
     @abstractmethod
     def project_sample(self,
                        sample: np.ndarray,
-                       freed_literals: list[int],
+                       freed_literals: List[int],
                        **kwargs) -> Tuple[bool, np.ndarray]:
         """Projects the sample onto the constraints, by freeing the given literals (by indices)."""
         pass

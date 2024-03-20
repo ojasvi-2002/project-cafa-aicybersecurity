@@ -21,7 +21,7 @@ portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/
 learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3)).
 
 ## Setup
-The project requires `Python 3.8` and on, and `Java 11` and on (to run `FastADC`). Additionally, 
+The project requires `Python 3.8.5` and on, and `Java 11` and on (to run `FastADC`). Additionally, 
 the installation of `pip install -r requirements.txt` is required (preferably in an isolated `venv`).
 
 ## Usage
