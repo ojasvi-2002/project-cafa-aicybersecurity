@@ -88,7 +88,7 @@ Attack artifacts and evaluation metrics will be saved under outputs/<date>/<run-
 
 5. Visualizing Attack Metrics: After running an attack, generate performance visualizations:
    
-       python plot_metrics.py
+       python plot_misclassification_rates.py
    
 This script will automatically:
 Locate the latest output folder Parse evaluations.json
