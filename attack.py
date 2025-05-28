@@ -10,6 +10,8 @@ import numpy as np
 from art.estimators.classification import PyTorchClassifier
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt  # 📌 Added for plotting
+
 from src.attacks.cafa import CaFA
 from src.constraints.constraint_projector import ConstraintProjector
 from src.constraints.dcs.utilize_dcs import DCsConstrainer
@@ -43,7 +45,7 @@ def main(cfg: DictConfig) -> None:
               model_artifact_path=cfg.ml_model.model_artifact_path)
     model = load_trained_model(cfg.ml_model.model_artifact_path, model_type=cfg.ml_model.model_type)
 
-    # 3. Wrap the model to ART classifier, for executing the attack:
+    # 3. Wrap the model to ART classifier:
     classifier = PyTorchClassifier(
         model=model,
         loss=lambda output, target: torch.functional.F.cross_entropy(output, target.long()),
@@ -52,14 +54,13 @@ def main(cfg: DictConfig) -> None:
     )
     eval_params = dict(classifier=classifier, tab_dataset=tab_dataset)
 
-    # 4. Load constraints; Optionally, mine them before:
+    # 4. Load constraints, optionally mine them:
     if 'constraints' in cfg and cfg.constraints:
         mining_source_params = cfg.data.params.copy()
-        mining_source_params['encoding_method'] = None  # we set default (label-) encoding for constraint mining
+        mining_source_params['encoding_method'] = None
         tab_dcs_dataset = TabularDataset(**mining_source_params)
         mining_source = tab_dcs_dataset.X_train_df
 
-        # [Optionally] Mine the DCs:
         mine_dcs(
             x_mine_source_df=mining_source,
             x_dcs_col_names=tab_dcs_dataset.x_dcs_col_names,
@@ -67,21 +68,18 @@ def main(cfg: DictConfig) -> None:
         )
 
         logger.info("Initializing constraint set and projector for the attack.")
-        # Initialize the DCs constrainer:
         constrainer = DCsConstrainer(
             x_tuples_df=mining_source,
             **tab_dcs_dataset.structure_constraints,
             **cfg.constraints.constrainer_params
         )
 
-        # Initialize the generic constraints projector
         projector = ConstraintProjector(
             constrainer=constrainer,
             **cfg.constraints.projector_params
         )
 
         if cfg.perform_constraints_soundness_evaluation:
-            # Evaluate the Soundness and Completeness of the DCs:
             logger.info("Evaluating the quality of the DCs.")
             evaluate_soundness_and_completeness(
                 dataset_name=cfg.data.name,
@@ -96,14 +94,23 @@ def main(cfg: DictConfig) -> None:
     X, y = tab_dataset.X_test[:cfg.n_samples_to_attack], tab_dataset.y_test[:cfg.n_samples_to_attack]
     if cfg.data_split_to_attack == 'train':
         X, y = tab_dataset.X_train[:cfg.n_samples_to_attack], tab_dataset.y_train[:cfg.n_samples_to_attack]
+
     evaluations: Dict[str, Dict[str, float]] = {}
+
+    # 📊 Track misclassification rates for plotting
+    misclassification_rates = []
+    labels = []
 
     evaluations['before-attack'] = evaluate_crafted_samples(X_adv=X, X_orig=X, y=y, **eval_params)
     np.save(os.path.join(output_dir, "X.npy"), X)
     np.save(os.path.join(output_dir, "Y.npy"), y)
     logger.info(f"before-attack: {evaluations['before-attack']}")
 
-    # 4. Attack:
+    # 📈 Append data for plotting
+    misclassification_rates.append(evaluations['before-attack']['is_misclassified_rate'])
+    labels.append('Before Attack')
+
+    # 6. Execute attack:
     X_adv = None
     if cfg.perform_attack:
         logger.info("Executing CaFA attack.")
@@ -116,23 +123,23 @@ def main(cfg: DictConfig) -> None:
         np.save(os.path.join(output_dir, "X_adv.npy"), X_adv)
         logger.info(f"after-cafa: {evaluations['after-cafa']}")
 
-    # 5. Project
+        # 📈 Append data for plotting
+        misclassification_rates.append(evaluations['after-cafa']['is_misclassified_rate'])
+        labels.append('After CaFA')
+
+    # 7. Project crafted samples to constraint space:
     if 'constraints' in cfg and cfg.constraints and cfg.perform_projection and X_adv is not None:
         logger.info("Executing projection of the crafted samples onto the constrained space.")
-        # collect sample projected to numpy array
         X_adv_proj = []
 
-        for x_orig, x_adv in tqdm(zip(X, X_adv), desc="Projecting crafted samples onto constraints."):  # for validation
-
-            # 5.A. Transform sample to the format of the DCs dataset
+        for x_orig, x_adv_sample in tqdm(zip(X, X_adv), desc="Projecting crafted samples onto constraints."):
             sample_orig = TabularDataset.cast_sample_format(x_orig, from_dataset=tab_dataset,
                                                             to_dataset=tab_dcs_dataset)
-            sample_adv = TabularDataset.cast_sample_format(x_adv, from_dataset=tab_dataset, to_dataset=tab_dcs_dataset)
+            sample_adv = TabularDataset.cast_sample_format(x_adv_sample, from_dataset=tab_dataset,
+                                                           to_dataset=tab_dcs_dataset)
 
-            # 5.B. Project
             is_succ, sample_projected = projector.project(sample_adv, sample_original=sample_orig)
 
-            # 5.C. Transform back to the format of the model input
             x_adv_proj = TabularDataset.cast_sample_format(sample_projected, from_dataset=tab_dcs_dataset,
                                                            to_dataset=tab_dataset)
             X_adv_proj.append(x_adv_proj)
@@ -143,10 +150,25 @@ def main(cfg: DictConfig) -> None:
         np.save(os.path.join(output_dir, "X_adv_proj.npy"), X_adv_proj)
         logger.info(f"after-projection: {evaluations['after-cafa-projection']}")
 
-    # 6. Log & save evaluations:
+        # 📈 Append data for plotting
+        misclassification_rates.append(evaluations['after-cafa-projection']['is_misclassified_rate'])
+        labels.append('After Projection')
+
+    # 8. Log and save results:
     logger.info(f"Evaluations: {evaluations}")
     with open(os.path.join(output_dir, "evaluations.json"), "w") as f:
         json.dump(evaluations, f, indent=4)
+
+    # 📊 Final plot of misclassification rates
+    plt.figure(figsize=(8, 5))
+    plt.plot(labels, misclassification_rates, marker='o')
+    plt.title('Misclassification Rate at Each Stage')
+    plt.xlabel('Stage')
+    plt.ylabel('Misclassification Rate')
+    plt.ylim(0, 1)
+    plt.grid(True)
+    plt.show()
+
     logger.info(f"Finished run. results saved in {output_dir}")
 
 
