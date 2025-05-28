@@ -1,3 +1,4 @@
+# AI-CYBERSECURITYPROJECT..CAFA. "" THIS IS MY COLLEGE PROJEC REPOSITORY FOR AI &CYVERSECURIY PROJECT
 
 # Adversarial Example Attacks on Tabular Data
 The official repository of [Cost aware Feasible Attack (CaFA) on Tabular Data](TODO-LINK). It provides a modular, clean and 
@@ -8,6 +9,13 @@ Thus, it allows: transparency of technical details of our work, future extension
 <img width="500" src="docs/tabular-attack-example.png">
 </div>
 
+
+#  Cost-aware Feasible Adversarial Attacks on Neural Tabular Classifiers (CaFA)
+
+This repository contains an implementation of **Cost-aware Feasible Adversarial Attacks (CaFA)**, a method for generating adversarial examples on tabular datasets while respecting real-world data integrity constraints.  
+This implementation reproduces the core ideas from the **Oakland 2024 paper** [*CaFA: Cost-aware Feasible Adversarial Attacks on Neural Tabular Classifiers*](https://github.com/matanbt/attack-tabular).
+
+---
 ## What is CaFA?
 CaFA is an _Adversarial Example_ attack, suited for tabular data. That is, given a set of samples and a classification 
 ML-model, CaFA crafts malicious inputs--based on the original ones--that are misclassified by the model.
@@ -20,25 +28,20 @@ portion of the dataset; we focus on [Denial Constraints](https://dl.acm.org/doi/
 3. **Project:** The crafted samples are then projected onto the constrained space embodied by the constraints 
 learned in the first step. For this end we use a SAT solver ([Z3 Theorem Prover](https://github.com/Z3Prover/z3)).
 
-## Setup
-The project requires `Python 3.8.5` and on, and `Java 11` and on (to run `FastADC`). Additionally, 
-the installation of `pip install -r requirements.txt` is required (preferably in an isolated `venv`).
+## 📑 Project Overview
 
-## Usage
-To run the attack use:
-```bash
-python attack.py data=<dataset_name>
-```
-Where `<dataset_name>` is one of the datasets listed in the `data/` dir (which can be enriched).
+Adversarial attacks on tabular data present unique challenges since each record must remain feasible under domain-specific rules (e.g., age ≥ 0, income categories, etc.).  
+**CaFA** tackles this by:
+- **Automatically mining Denial Constraints (DCs)** from training data
+- Applying a **modified PGD attack (TabPGD)** tailored to tabular models
+- Using a **SAT solver to project adversarial samples back into the feasible data space**
 
-The attack's components can be enabled/disabled/modified through the [Hydra](https://hydra.cc/)'s configuration dir (`config/`) or [overriden](https://hydra.cc/docs/advanced/override_grammar/basic/) through 
-CLI.
-These components include:
-- `data`: the dataset to preprocess, train on, attack and mine constraints from.
-- `ml_model`: the ML model to load/train and target as part of the attack.
-- `attack`: the attack's (CaFA) parameters. 
-- `constraints`: the specification of the utilized constraints, their mining process and whether to incorporate 
-projection; in this these are Denial Constraints.
+This project extends the original implementation by:
+- Adding **dynamic visualizations of misclassification rates, L0, and Linf attack costs**
+- Automating result plotting after each attack run
+- Handling dynamic result directory creation and visualization retrieval
+
+---
 
 
 ## Datasets
@@ -49,17 +52,58 @@ We evaluate on three commonly used tabular datasets:
 
 Additional tabular datasets can be added following the same structure and format as the existing ones; that is, it is requried to provide the attack with the data itself, its structure and optionally the mined constraints (see: `config/data/`). 
 
-
-## Citation
-If you use this code in your research, please cite our paper:
+## 📂 Project Structure
 ```
-@inproceedings{BenTov24CaFA,
-  title={{CaFA}: {C}ost-aware, Feasible Attacks With Database Constraints Against Neural Tabular Classifiers},
-  author={Ben-Tov, Matan and Deutch, Daniel and Frost, Nave and Sharif, Mahmood},
-  booktitle={Proceedings of the 45th IEEE Symposium on Security and Privacy (S&P)},
-  year={2024}
-}
+├── attack.py                         # Main attack runner script
+├── config/                           # Hydra config files
+├── data/                             # Data directory (Adult, COMPAS, Credit datasets)
+├── outputs/                          # Auto-generated attack outputs (with metrics & logs)
+├── plots/                            # Generated metric comparison plots
+├── src/                              # Source code (models, attacks, constraints, utilities)
+├── requirements.txt                  # Python dependencies
+├── README.md                         # This file
+└── LICENSE
 ```
 
-## License
-`attack-tabular` repository is licensed under the [MIT License](LICENSE).
+
+## Steps of Implementation 
+1. clone the repository 
+   
+2. Create and activate a virtual environment:
+    python3 -m venv venv
+    
+    source venv/bin/activate
+    
+3. Install dependencies:
+   
+     pip install -r requirements.txt
+   
+   please install matplotlib "" pip install matlplotlib""
+4. Running the Attack: To run the default CaFA attack on the Adult dataset:
+   
+     python attack.py
+   
+Attack artifacts and evaluation metrics will be saved under outputs/<date>/<run-time>/.
+
+
+5. Visualizing Attack Metrics: After running an attack, generate performance visualizations:
+   
+       python plot_metrics.py
+   
+This script will automatically:
+Locate the latest output folder Parse evaluations.json
+Generate a grouped bar chart comparing:
+Misclassification rates
+Feasible success rates
+L0 and Linf costs before/after attack and projection
+**Plots are saved to the plots/ directory.**
+
+
+## RESULT :
+![full_metrics_comparison](https://github.com/user-attachments/assets/f1706198-d383-4bc9-8d05-21577ddcf343)
+
+
+
+
+
+
