@@ -70,16 +70,17 @@ Additional tabular datasets can be added following the same structure and format
 1. clone the repository 
    
 2. Create and activate a virtual environment:
+   
     python3 -m venv venv
     
     source venv/bin/activate
     
-3. Install dependencies:
+4. Install dependencies:
    
      pip install -r requirements.txt
    
    please install matplotlib "" pip install matlplotlib""
-4. Running the Attack: To run the default CaFA attack on the Adult dataset:
+5. Running the Attack: To run the default CaFA attack on the Adult dataset:
    
      python attack.py
    
