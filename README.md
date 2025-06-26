@@ -80,7 +80,7 @@ Additional tabular datasets can be added following the same structure and format
      pip install -r requirements.txt
    
    please install matplotlib "" pip install matplotlib""
-5. Running the Attack: To run the default CaFA attack on the Adult dataset:
+5. Running the Attack: To run the default CaFA attack on the dataset:
    
      python attack.py
    
